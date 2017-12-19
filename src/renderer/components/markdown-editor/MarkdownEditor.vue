@@ -3,7 +3,7 @@
     <aside class="side-bar">
       sss
     </aside>
-      <!-- vmd ==> vue markdown -->
+    <!-- vmd ==> vue markdown -->
     <div class="vmd" ref="vmd">
       <div class="vmd-header" ref="vmdHeader">
         <div class="vmd-btn-group">
@@ -23,7 +23,7 @@
           <button type="button" class="vmd-btn vmd-btn-default" @click="addImage" title="Image (Ctrl + P)"><i class="vf-image"></i></button>
         </div>
         <div class="vmd-btn-group">
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addCode" title="Code (Ctrl + C)"><i class="vf-code"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addCode" title="Code (Ctrl + K)"><i class="vf-code"></i></button>
           <button type="button" class="vmd-btn vmd-btn-default" @click="addQuote" title="Quote (Ctrl + Q)"><i class="vf-quote-left"></i></button>
         </div>
         <div class="vmd-btn-group">
@@ -51,6 +51,7 @@
                   @keydown.ctrl.t.prevent="addTable"
                   @keydown.ctrl.u.prevent="addUl"
                   @keydown.ctrl.o.prevent="addOl"
+                  @keydown.enter.prevent="addEnter"
         ></textarea>
         <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
       </div>
@@ -117,7 +118,7 @@
         vmdInput: '---\nlayout: post\ntitle: "<title>"\ndate: <date>\ncategories: cate/["cat1", "cat2"]\n---\n\n',
         lang: 'en',
         isPreview: true,
-        isSanitize: false
+        isSanitize: true
       }
     },
     computed: {
@@ -198,17 +199,55 @@
        * 扩展 Tab 快捷键
        */
       addTab() {
-        this.__updateInput('\n' + this.__localize('tabText'));
+        this.__updateInput(this.__localize('tabText'));
+      },
+      addEnter(e) {
+        if(e.shiftKey){
+          this.__updateInput('\n');
+        }else if(!e.isComposing){
+          let selectionStart = this.vmdEditor.selectionStart;
+          let cursor = selectionStart;
+          let content = this.vmdEditor.value;
+          let pattern = /^(> ).*|^(\d+ ).*|^(- ).*/
+          let lineStart = "";
+          let i = selectionStart - 1;
+          for(; i >= 0; --i){
+            if(content[i] === '\n'){
+              break;
+            }
+            lineStart = content[i] + lineStart
+          }
+          let needDel = content[selectionStart] === '\n' || content.length === selectionStart
+          let delPattern = /^(\d+)\. $|^- $|^> $/
+          if(needDel && delPattern.test(lineStart)){
+            if(i === -1){
+              i = 0;
+            }
+            this.vmdEditor.value = content.substr(0,i) + "\n\n" + content.substr(selectionStart)
+            cursor += lineStart.length;
+            console.log(cursor)
+            this.__setSelection(cursor, cursor);
+          }else{
+            let replaceText = '\n'
+            let orderedListPattern = /^(\d+)\. .*/
+            if(lineStart){
+              if(lineStart.startsWith("> ")){
+                replaceText = "\n> "
+              }else if(lineStart.startsWith("- ")){
+                replaceText = "\n- "
+              }else if(orderedListPattern.test(lineStart)){
+                let num = parseInt(lineStart.match(orderedListPattern));
+                replaceText = "\n" + (num + 1) + ". "
+              }
+            }
+            this.__replaceSelection(replaceText);
+          }
+        }
       },
       addStrong() {
         let chunk, cursor, selected = this.__getSelection(), content = this.__getContent();
 
-        if (selected.length === 0) {
-          // 提供额外的内容
-          chunk = this.__localize('strongText');
-        } else {
-          chunk = selected.text;
-        }
+        chunk = selected.text;
 
         // 替换选择内容并将光标设置到chunk内容前
         if (content.substr(selected.start - 2, 2) === '**'
@@ -228,12 +267,7 @@
       addItalic() {
         let chunk, cursor, selected = this.__getSelection(), content = this.__getContent();
 
-        if (selected.length === 0) {
-          // 提供额外的内容
-          chunk = this.__localize('italicText');
-        } else {
-          chunk = selected.text;
-        }
+        chunk = selected.text;
 
         // 替换选择内容并将光标设置到chunk内容前
         if (content.substr(selected.start - 1, 1) === '_'
@@ -253,12 +287,7 @@
       addStrikethrough() {
         let chunk, cursor, selected = this.__getSelection(), content = this.__getContent();
 
-        if (selected.length === 0) {
-          // 提供额外的内容
-          chunk = this.__localize('strikethroughText');
-        } else {
-          chunk = selected.text;
-        }
+        chunk = selected.text;
 
         // 替换选择内容并将光标设置到chunk内容前
         if (content.substr(selected.start - 2, 2) === '~~'
@@ -278,12 +307,7 @@
       addHeading() {
         let chunk, cursor, selected = this.__getSelection(), content = this.__getContent(), pointer, prevChar;
 
-        if (selected.length === 0) {
-          // 提供额外的内容
-          chunk = this.__localize('headingText');
-        } else {
-          chunk = selected.text;
-        }
+        chunk = selected.text;
 
         // 替换选择内容并将光标设置到chunk内容前
         if ((pointer = 4, content.substr(selected.start - pointer, pointer) === '### ')
@@ -310,16 +334,7 @@
       addQuote() {
         let chunk, cursor, selected = this.__getSelection();
 
-        // 替换选择内容并将光标设置到chunk内容前
-        if (selected.length === 0) {
-          // 提供额外的内容
-          chunk = this.__localize('quoteText');
 
-          this.__replaceSelection('\n> ' + chunk);
-
-          // 设置光标
-          cursor = selected.start + 3;
-        } else {
           if (selected.text.indexOf('\n') < 0) {
             chunk = selected.text;
 
@@ -333,30 +348,25 @@
             list = selected.text.split('\n');
             chunk = list[0];
 
-            list.forEach(function (k, v) {
-              list[k] = '> ' + v;
-            });
+            for (let i in list){
+              list[i] = '> ' + list[i]
+            }
 
-            this.__replaceSelection('\n\n' + list.join('\n'));
+            this.__replaceSelection( list.join('\n'));
 
             // 设置光标
             cursor = selected.start + 4;
           }
-        }
+        
 
         // 设置选择内容
-        this.__setSelection(cursor, cursor + chunk.length);
+        //this.__setSelection(cursor, cursor + chunk.length);
         this.__updateInput()
       },
       addCode() {
         let chunk, cursor, selected = this.__getSelection(), content = this.__getContent();
 
-        if (selected.length === 0) {
-          // 提供额外的内容
-          chunk = this.__localize('codeText');
-        } else {
-          chunk = selected.text;
-        }
+        chunk = selected.text;
 
         // 替换选择内容并将光标设置到chunk内容前
         if (content.substr(selected.start - 4, 4) === '```\n'
@@ -384,12 +394,7 @@
       addLink() {
         let chunk, cursor, selected = this.__getSelection(), link;
 
-        if (selected.length === 0) {
-          // 提供额外的内容
-          chunk = this.__localize('linkText');
-        } else {
-          chunk = selected.text;
-        }
+        chunk = selected.text;
 
         link = prompt(this.__localize('linkTip'), 'http://');
 
@@ -411,12 +416,7 @@
       addImage() {
         let chunk, cursor, selected = this.__getSelection(), link;
 
-        if (selected.length === 0) {
-          // 提供额外的内容
-          chunk = this.__localize('imageText');
-        } else {
-          chunk = selected.text;
-        }
+        chunk = selected.text;
 
         link = prompt(this.__localize('imageTip'), 'http://');
 
@@ -440,7 +440,7 @@
 
         if (selected.length === 0) {
           // 提供额外的内容
-          chunk = '\n' + this.__localize('tableText');
+          chunk = this.__localize('tableText');
         } else {
           chunk = selected.text;
         }
@@ -456,38 +456,29 @@
       addUl() {
         let chunk, cursor, selected = this.__getSelection();
 
-        // 替换选择内容并将光标设置到chunk内容前
-        if (selected.length === 0) {
-          // 提供额外的内容
-          chunk = this.__localize('ulText');
+        if (selected.text.indexOf('\n') < 0) {
+          chunk = selected.text;
 
           this.__replaceSelection('- ' + chunk);
+
           // 设置光标
           cursor = selected.start + 2;
         } else {
-          if (selected.text.indexOf('\n') < 0) {
-            chunk = selected.text;
+          let list = [];
 
-            this.__replaceSelection('- ' + chunk);
+          list = selected.text.split('\n');
+          chunk = list[0];
 
-            // 设置光标
-            cursor = selected.start + 2;
-          } else {
-            let list = [];
-
-            list = selected.text.split('\n');
-            chunk = list[0];
-
-            list.forEach(function (k, v) {
-              list[k] = '- ' + v;
-            });
-
-            this.__replaceSelection('\n\n' + list.join('\n'));
-
-            // 设置光标
-            cursor = selected.start + 4;
+          for(let i in list){
+            list[i] = '- ' + list[i]
           }
+
+          this.__replaceSelection(list.join('\n'));
+
+          // 设置光标
+          cursor = selected.start + 4;
         }
+        
 
         // 设置选择内容
         this.__setSelection(cursor, cursor + chunk.length);
@@ -496,36 +487,28 @@
       addOl() {
         let chunk, cursor, selected = this.__getSelection();
 
-        // 替换选择内容并将光标设置到chunk内容前
-        if (selected.length === 0) {
-          // 提供额外的内容
-          chunk = this.__localize('olText');
+        if (selected.text.indexOf('\n') < 0) {
+          chunk = selected.text;
+
           this.__replaceSelection('1. ' + chunk);
+
           // 设置光标
           cursor = selected.start + 3;
         } else {
-          if (selected.text.indexOf('\n') < 0) {
-            chunk = selected.text;
+          let list = [];
 
-            this.__replaceSelection('1. ' + chunk);
+          list = selected.text.split('\n');
+          chunk = list[0];
 
-            // 设置光标
-            cursor = selected.start + 3;
-          } else {
-            let list = [];
-
-            list = selected.text.split('\n');
-            chunk = list[0];
-
-            list.forEach(function (k, v) {
-              list[k] = '1. ' + v;
-            });
-
-            this.__replaceSelection('\n\n' + list.join('\n'));
-
-            // 设置光标
-            cursor = selected.start + 5;
+          for(let i = 0; i < list.length; ++i){
+            list[i] = (i+1) + '. ' + list[i]
           }
+
+
+          this.__replaceSelection(list.join('\n'));
+
+          // 设置光标
+          cursor = selected.start + 5;
         }
 
         // 设置选择内容
@@ -659,11 +642,12 @@
     background: #f8f8f8;
     width: 20%;
     box-sizing: border-box;
+    margin-left: 2px;
   }
   .vmd {
     position: relative;
     width: 80%;
-    height: 100%;
+    height: 99%;
     overflow: hidden;
     border: thin solid #ddd;
     text-align: left;
@@ -675,6 +659,7 @@
     -ms-transition: all .3s linear;
     -o-transition: all .3s linear;
     transition: all .3s linear;
+    margin: 2px;
   }
 
   .vmd.active {
