@@ -1,59 +1,65 @@
 <template>
-  <!-- vmd ==> vue markdown -->
-  <div class="vmd" ref="vmd">
-    <div class="vmd-header" ref="vmdHeader">
-      <div class="vmd-btn-group">
-        <button type="button" class="vmd-btn vmd-btn-default" @click="addStrong" title="Ctrl + B"><i class="vf-bold"></i></button>
-        <button type="button" class="vmd-btn vmd-btn-default" @click="addItalic" title="Ctrl + I"><i class="vf-italic"></i></button>
-        <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading" title="Ctrl + H"><i class="vf-header"></i></button>
-        <button type="button" class="vmd-btn vmd-btn-default" @click="addStrikethrough" title="Ctrl + D"><i class="vf-strikethrough"></i>
-        </button>
+  <div class="root">
+    <aside class="side-bar">
+      sss
+    </aside>
+      <!-- vmd ==> vue markdown -->
+    <div class="vmd" ref="vmd">
+      <div class="vmd-header" ref="vmdHeader">
+        <div class="vmd-btn-group">
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addStrong" title="Bold (Ctrl + B)"><i class="vf-bold"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addItalic" title="Italic (Ctrl + I)"><i class="vf-italic"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading" title="Head 3 (Ctrl + H)"><i class="vf-header"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addStrikethrough" title="Strikethrough (Ctrl + D)"><i class="vf-strikethrough"></i>
+          </button>
+        </div>
+        <div class="vmd-btn-group">
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addUl" title="Unordered list (Ctrl + U)"><i class="vf-list-ul"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addOl" title="Ordered list (Ctrl + O)"><i class="vf-list-ol"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addTable" title="Table (Ctrl + T)"><i class="vf-table"></i></button>
+        </div>
+        <div class="vmd-btn-group">
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addLink" title="Hyperlink (Ctrl + A)"><i class="vf-chain"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addImage" title="Image (Ctrl + P)"><i class="vf-image"></i></button>
+        </div>
+        <div class="vmd-btn-group">
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addCode" title="Code (Ctrl + C)"><i class="vf-code"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addQuote" title="Quote (Ctrl + Q)"><i class="vf-quote-left"></i></button>
+        </div>
+        <div class="vmd-btn-group">
+          <button type="button" title="Preview" class="vmd-btn vmd-btn-default" @click="preview"><i :class="previewClass"></i></button>
+          <button type="button" title="HTML" class="vmd-btn vmd-btn-default" @click="sanitizeHtml">HTML</button>
+        </div>
       </div>
-      <div class="vmd-btn-group">
-        <button type="button" class="vmd-btn vmd-btn-default" @click="addUl" title="Ctrl + U"><i class="vf-list-ul"></i></button>
-        <button type="button" class="vmd-btn vmd-btn-default" @click="addOl" title="Ctrl + O"><i class="vf-list-ol"></i></button>
-        <button type="button" class="vmd-btn vmd-btn-default" @click="addTable" title="Ctrl + T"><i class="vf-table"></i></button>
+      <div class="vmd-body" ref="vmdBody">
+        <textarea class="vmd-editor" :style="vmdEditorStyle" ref="vmdEditor"
+                  title="This is a editor."
+                  :value="vmdValue"
+                  @input="vmdInputting($event.target.value)"
+                  @focus="vmdActive"
+                  @blur="vmdInactive"
+                  @keydown.tab.prevent="addTab"
+                  @keydown.ctrl.b.prevent="addStrong"
+                  @keydown.ctrl.i.prevent="addItalic"
+                  @keydown.ctrl.d.prevent="addStrikethrough"
+                  @keydown.ctrl.h.prevent="addHeading"
+                  @keydown.ctrl.l.prevent="addLine"
+                  @keydown.ctrl.q.prevent="addQuote"
+                  @keydown.ctrl.c.prevent="addCode"
+                  @keydown.ctrl.a.prevent="addLink"
+                  @keydown.ctrl.p.prevent="addImage"
+                  @keydown.ctrl.t.prevent="addTable"
+                  @keydown.ctrl.u.prevent="addUl"
+                  @keydown.ctrl.o.prevent="addOl"
+        ></textarea>
+        <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
       </div>
-      <div class="vmd-btn-group">
-        <button type="button" class="vmd-btn vmd-btn-default" @click="addLink" title="Ctrl + A"><i class="vf-chain"></i></button>
-        <button type="button" class="vmd-btn vmd-btn-default" @click="addImage" title="Ctrl + P"><i class="vf-image"></i></button>
+      <div class="vmd-footer" ref="vmdFooter">
+        <a type="button" class="vmd-btn vmd-btn-default vmd-btn-borderless">Markdown</a>
       </div>
-      <div class="vmd-btn-group">
-        <button type="button" class="vmd-btn vmd-btn-default" @click="addCode" title="Ctrl + C"><i class="vf-code"></i></button>
-        <button type="button" class="vmd-btn vmd-btn-default" @click="addQuote" title="Ctrl + Q"><i class="vf-quote-left"></i></button>
-      </div>
-      <div class="vmd-btn-group">
-        <button type="button" class="vmd-btn vmd-btn-default" @click="preview"><i :class="previewClass"></i></button>
-        <button type="button" class="vmd-btn vmd-btn-default" @click="sanitizeHtml">HTML</button>
-      </div>
-    </div>
-    <div class="vmd-body" ref="vmdBody">
-      <textarea class="vmd-editor" :style="vmdEditorStyle" ref="vmdEditor"
-                title="This is a editor."
-                :value="vmdValue"
-                @input="vmdInputting($event.target.value)"
-                @focus="vmdActive"
-                @blur="vmdInactive"
-                @keydown.tab.prevent="addTab"
-                @keydown.ctrl.b.prevent="addStrong"
-                @keydown.ctrl.i.prevent="addItalic"
-                @keydown.ctrl.d.prevent="addStrikethrough"
-                @keydown.ctrl.h.prevent="addHeading"
-                @keydown.ctrl.l.prevent="addLine"
-                @keydown.ctrl.q.prevent="addQuote"
-                @keydown.ctrl.c.prevent="addCode"
-                @keydown.ctrl.a.prevent="addLink"
-                @keydown.ctrl.p.prevent="addImage"
-                @keydown.ctrl.t.prevent="addTable"
-                @keydown.ctrl.u.prevent="addUl"
-                @keydown.ctrl.o.prevent="addOl"
-      ></textarea>
-      <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
-    </div>
-    <div class="vmd-footer" ref="vmdFooter">
-      <a type="button" class="vmd-btn vmd-btn-default vmd-btn-borderless">Markdown</a>
     </div>
   </div>
+
 </template>
 
 <script>
@@ -61,12 +67,10 @@
   import marked from 'marked'
   import hljs from 'highlight.js'
 
-  // 引入依赖样式库
-//  import 'highlight.js/styles/atom-one-light.css'
   import './styles/markdown.css'
   import './styles/iconfont.css'
 
-  import locale from './locale/zh'
+  import locale from './locale/en'
 
   // 配置marked环境
   marked.setOptions({
@@ -110,8 +114,8 @@
         vmdFooter: null,
         vmdEditor: null,
         vmdPreview: null,
-        vmdInput: '# hello',
-        lang: 'zh',
+        vmdInput: '---\nlayout: post\ntitle: "<title>"\ndate: <date>\ncategories: cate/["cat1", "cat2"]\n---\n\n',
+        lang: 'en',
         isPreview: true,
         isSanitize: false
       }
@@ -645,10 +649,20 @@
     -moz-box-sizing: border-box;
     box-sizing: border-box;
   }
+  .root {
+    display: flex;
+    width: 100%;
+    height: 100%;
+  }
 
+  .side-bar {
+    background: #f8f8f8;
+    width: 20%;
+    box-sizing: border-box;
+  }
   .vmd {
     position: relative;
-    width: 100%;
+    width: 80%;
     height: 100%;
     overflow: hidden;
     border: thin solid #ddd;
@@ -694,6 +708,8 @@
     min-height: 100px;
     float: left;
     overflow: auto;
+    box-sizing: border-box;
+    border-left: solid 4px #f8f8f8;
   }
 
   .vmd-body .vmd-editor {
@@ -702,7 +718,7 @@
     line-height: 1.2rem;
     border: 0;
     resize: none;
-    background: #00d1b2;
+    /*background: #00d1b2;*/
   }
 
   .vmd-body .vmd-preview {
