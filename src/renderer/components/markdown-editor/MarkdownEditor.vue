@@ -86,6 +86,7 @@
   import locale from './locale/en'
 
   const electron = require('electron');
+  const ipcRenderer = require('electron').ipcRenderer
   const remote = electron.remote;
   const Menu = remote.Menu;
   const MenuItem = remote.MenuItem;
@@ -162,8 +163,20 @@
     created(){
       let that = this;
       this.noteContextMenu = new Menu()
+      this.noteContextMenu.append(new MenuItem({
+        label: "New note with title", click: function(){
+          let title = ipcRenderer.sendSync('prompt', {title:'Enter the title', val: ''});
+          if(title != null){
+            that.addNoteWithTitle(title);
+          }
+        }
+      }));
       this.noteContextMenu.append(new MenuItem({ label: 'Rename', click: function(){
-          console.log(that.contextMenuOpNote)
+          let newTitle = ipcRenderer.sendSync('prompt', {title:'Rename', val: that.contextMenuOpNote.title});
+          if(newTitle){
+            that.contextMenuOpNote.title = newTitle;
+          }
+          that.contextMenuOpNote = null;
         }}))
       this.noteContextMenu.append(new MenuItem({ type: 'separator' }))
       this.noteContextMenu.append(new MenuItem({ label: 'Delete', click: function(){
@@ -280,7 +293,20 @@
           title: 'New note ' + (this.notes.length + 1),
           content: this.vmdInput,
           created: time,
-          favorite: false,
+        }
+        // Add
+        this.notes.push(note)
+        // Select
+        this.selectNote(note)
+      },
+      addNoteWithTitle(title){
+        // Default new note
+        const time = Date.now();
+        const note = {
+          id: String(time),
+          title: title,
+          content: this.vmdInput,
+          created: time,
         }
         // Add
         this.notes.push(note)
