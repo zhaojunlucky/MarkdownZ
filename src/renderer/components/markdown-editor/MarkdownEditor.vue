@@ -65,6 +65,9 @@
       </div>
       <div class="vmd-footer" ref="vmdFooter">
         <a type="button" class="vmd-btn vmd-btn-default vmd-btn-borderless">Markdown</a>
+        <span type="button" class="txt">Created: {{ selectedNote.created | date }}</span>
+        <a type="button" class="txt">Words: {{ wordsCount }}</a>
+        <a type="button" class="txt">Characters: {{ charactersCount }}</a>
       </div>
     </div>
   </div>
@@ -86,6 +89,18 @@
   const Menu = remote.Menu;
   const MenuItem = remote.MenuItem;
 
+  function confirm(title, message){
+    var dialog = remote.dialog;
+    var choice = dialog.showMessageBox(
+            remote.getCurrentWindow(),
+            {
+                type: 'question',
+                buttons: ['Yes', 'No'],
+                title: title,
+                message: message
+            });
+    return choice == 0;
+  }
   // 配置marked环境
   marked.setOptions({
     highlight: function (code) {
@@ -145,12 +160,21 @@
           console.log(that.contextMenuOpNote)
         }}))
       this.noteContextMenu.append(new MenuItem({ type: 'separator' }))
-      this.noteContextMenu.append(new MenuItem({ label: 'Delete Note'}))
+      this.noteContextMenu.append(new MenuItem({ label: 'Delete', click: function(){
+          if(confirm("Confirm", "Are you sure to delete '" + that.contextMenuOpNote.title + "' ?")){
+            const index = that.notes.indexOf(that.contextMenuOpNote)
+            if (index !== -1) {
+              that.notes.splice(index, 1);
+            }
+            if(that.selectNote && that.contextMenuOpNote.id === that.selectNote.id){
+              that.selectNote = null;
+            }
+
+          }
+          that.contextMenuOpNote = null;
+        }}))
     },
     computed: {
-      // vmdValue() {
-      //   return this.$props.value || this.vmdInput
-      // },
       /**
        * 编译成markdown文档
        */
@@ -631,8 +655,9 @@
       },
       __resize() {
         let vmdHeaderOffset = this.vmdHeader ? this.vmdHeader.offsetHeight : 0,
-          vmdFooterOffset = this.vmdFooter ? this.vmdFooter.offsetHeight : 0;
+        vmdFooterOffset = this.vmdFooter ? this.vmdFooter.offsetHeight : 0;
         this.vmdBody.style.height = (this.vmd.offsetHeight - vmdHeaderOffset - vmdFooterOffset) + 'px';
+
       },
       __updateInput(txt) {
         if (txt) {
@@ -764,6 +789,27 @@
   .toolbar {
     padding: 4px;
     box-sizing: border-box;
+  }
+
+  .txt {
+    display: inline-block;
+    padding: 6px 12px;
+    margin-bottom: 0;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.42857143;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    -ms-touch-action: manipulation;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    background-image: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
   }
 
   .root {
