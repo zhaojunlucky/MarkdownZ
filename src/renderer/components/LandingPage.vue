@@ -19,7 +19,6 @@
 <style>
   @import url('https://fonts.googleapis.com/css?family=Source+Sans+Pro');
   @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
-  @import url('https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css')
 
 body {
   font-family: sans-serif;

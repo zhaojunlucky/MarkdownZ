@@ -1,7 +1,12 @@
 <template>
   <div class="root">
     <aside class="side-bar">
-      sss
+      <div class="toolbar" id="test">
+        <button @click="addNote" :title="notes.length + ' note(s) already'"><i class="material-icons">add</i> Add note</button>
+      </div>
+      <div class="notes">
+        <div class="note" v-for="note of sortedNotes" :class="{selected: note === selectedNote}" @click="selectNote(note)" @contextmenu="openNoteContextMenu(note)">{{note.title}}</div>
+      </div>
     </aside>
     <!-- vmd ==> vue markdown -->
     <div class="vmd" ref="vmd">
@@ -9,7 +14,7 @@
         <div class="vmd-btn-group">
           <button type="button" class="vmd-btn vmd-btn-default" @click="addStrong" title="Bold (Ctrl + B)"><i class="vf-bold"></i></button>
           <button type="button" class="vmd-btn vmd-btn-default" @click="addItalic" title="Italic (Ctrl + I)"><i class="vf-italic"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading" title="Head 3 (Ctrl + H)"><i class="vf-header"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading" title="Head 3 (Ctrl + 3)"><i class="vf-header"></i></button>
           <button type="button" class="vmd-btn vmd-btn-default" @click="addStrikethrough" title="Strikethrough (Ctrl + D)"><i class="vf-strikethrough"></i>
           </button>
         </div>
@@ -19,8 +24,8 @@
           <button type="button" class="vmd-btn vmd-btn-default" @click="addTable" title="Table (Ctrl + T)"><i class="vf-table"></i></button>
         </div>
         <div class="vmd-btn-group">
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addLink" title="Hyperlink (Ctrl + A)"><i class="vf-chain"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addImage" title="Image (Ctrl + P)"><i class="vf-image"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addLink" title="Hyperlink (Ctrl + L)"><i class="vf-chain"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addImage" title="Image (Ctrl + G)"><i class="vf-image"></i></button>
         </div>
         <div class="vmd-btn-group">
           <button type="button" class="vmd-btn vmd-btn-default" @click="addCode" title="Code (Ctrl + K)"><i class="vf-code"></i></button>
@@ -32,28 +37,31 @@
         </div>
       </div>
       <div class="vmd-body" ref="vmdBody">
-        <textarea class="vmd-editor" :style="vmdEditorStyle" ref="vmdEditor"
-                  title="This is a editor."
-                  :value="vmdValue"
-                  @input="vmdInputting($event.target.value)"
-                  @focus="vmdActive"
-                  @blur="vmdInactive"
-                  @keydown.tab.prevent="addTab"
-                  @keydown.ctrl.b.prevent="addStrong"
-                  @keydown.ctrl.i.prevent="addItalic"
-                  @keydown.ctrl.d.prevent="addStrikethrough"
-                  @keydown.ctrl.h.prevent="addHeading"
-                  @keydown.ctrl.l.prevent="addLine"
-                  @keydown.ctrl.q.prevent="addQuote"
-                  @keydown.ctrl.c.prevent="addCode"
-                  @keydown.ctrl.a.prevent="addLink"
-                  @keydown.ctrl.p.prevent="addImage"
-                  @keydown.ctrl.t.prevent="addTable"
-                  @keydown.ctrl.u.prevent="addUl"
-                  @keydown.ctrl.o.prevent="addOl"
-                  @keydown.enter.prevent="addEnter"
-        ></textarea>
-        <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
+        <template v-if="selectedNote">
+          <textarea class="vmd-editor" :style="vmdEditorStyle" ref="vmdEditor" v-model="selectedNote.content"
+                    title="This is a editor."
+                    @input="vmdInputting($event.target.value)"
+                    @focus="vmdActive"
+                    @blur="vmdInactive"
+                    @keydown.tab.prevent="addTab"
+                    @keydown.ctrl.b.prevent="addStrong"
+                    @keydown.ctrl.i.prevent="addItalic"
+                    @keydown.ctrl.d.prevent="addStrikethrough"
+                    @keydown.ctrl.51.prevent="addHeading"
+                    @keydown.ctrl.r.prevent="addLine"
+                    @keydown.ctrl.q.prevent="addQuote"
+                    @keydown.ctrl.k.prevent="addCode"
+                    @keydown.ctrl.l.prevent="addLink"
+                    @keydown.ctrl.g.prevent="addImage"
+                    @keydown.ctrl.t.prevent="addTable"
+                    @keydown.ctrl.u.prevent="addUl"
+                    @keydown.ctrl.o.prevent="addOl"
+                    @keydown.enter.prevent="addEnter"
+                    @keydown.ctrl.a.prevent="selectAll"
+                    @keydown.ctrl.c.prevent="copyAll"
+          ></textarea>
+          <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
+        </template>
       </div>
       <div class="vmd-footer" ref="vmdFooter">
         <a type="button" class="vmd-btn vmd-btn-default vmd-btn-borderless">Markdown</a>
@@ -72,6 +80,11 @@
   import './styles/iconfont.css'
 
   import locale from './locale/en'
+
+  const electron = require('electron');
+  const remote = electron.remote;
+  const Menu = remote.Menu;
+  const MenuItem = remote.MenuItem;
 
   // 配置marked环境
   marked.setOptions({
@@ -118,18 +131,31 @@
         vmdInput: '---\nlayout: post\ntitle: "<title>"\ndate: <date>\ncategories: cate/["cat1", "cat2"]\n---\n\n',
         lang: 'en',
         isPreview: true,
-        isSanitize: true
+        isSanitize: true,
+        notes: JSON.parse(localStorage.getItem('notes')) || [],
+        selectedId: localStorage.getItem('selected-id') || null,
+        noteContextMenu: null,
+        contextMenuOpNote: null,
       }
     },
+    created(){
+      let that = this;
+      this.noteContextMenu = new Menu()
+      this.noteContextMenu.append(new MenuItem({ label: 'Rename', click: function(){
+          console.log(that.contextMenuOpNote)
+        }}))
+      this.noteContextMenu.append(new MenuItem({ type: 'separator' }))
+      this.noteContextMenu.append(new MenuItem({ label: 'Delete Note'}))
+    },
     computed: {
-      vmdValue() {
-        return this.$props.value || this.vmdInput
-      },
+      // vmdValue() {
+      //   return this.$props.value || this.vmdInput
+      // },
       /**
        * 编译成markdown文档
        */
       compiledMarkdown() {
-        return marked(this.$props.value || this.vmdInput, {sanitize: this.isSanitize})
+        return marked(this.selectedNote.content, {sanitize: this.isSanitize})
       },
       vmdEditorStyle() {
         return this.isPreview ? null : {
@@ -138,7 +164,40 @@
       },
       previewClass() {
         return this.isPreview ? 'vf-eye-slash' : 'vf-eye'
-      }
+      },
+      selectedNote () {
+        // We return the matching note with selectedId
+        return this.notes.find(note => note.id === this.selectedId)
+      },
+      sortedNotes () {
+        return this.notes.slice().sort((a, b) => a.created - b.created)
+      },
+      linesCount () {
+        if (this.selectedNote) {
+          // Count the number of new line characters
+          return this.selectedNote.content.split(/\r\n|\r|\n/).length
+        }
+      },
+
+      wordsCount () {
+        if (this.selectedNote) {
+          var s = this.selectedNote.content
+          // Turn new line cahracters into white-spaces
+          s = s.replace(/\n/g, ' ')
+          // Exclude start and end white-spaces
+          s = s.replace(/(^\s*)|(\s*$)/gi, '')
+          // Turn 2 or more duplicate white-spaces into 1
+          s = s.replace(/[ ]{2,}/gi, ' ')
+          // Return the number of spaces
+          return s.split(' ').length
+        }
+      },
+
+      charactersCount () {
+        if (this.selectedNote) {
+          return this.selectedNote.content.split('').length
+        }
+      },
     },
     mounted() {
       // 缓存DOM组件
@@ -154,6 +213,7 @@
     },
     beforeDestroy() {
       // 移除滚动监听事件
+      this.saveNotes()
       window.removeEventListener('resize', this.vmdResize, false);
       this.vmdEditor.removeEventListener('scroll', this.vmdSyncScrolling, false);
       this.vmdPreview.removeEventListener('scroll', this.vmdSyncScrolling, false);
@@ -162,6 +222,21 @@
       this.__removeDom();
     },
     methods: {
+      addNote(){
+        const time = Date.now()
+        // Default new note
+        const note = {
+          id: String(time),
+          title: 'New note ' + (this.notes.length + 1),
+          content: this.vmdInput,
+          created: time,
+          favorite: false,
+        }
+        // Add
+        this.notes.push(note)
+        // Select
+        this.selectNote(note)
+      },
       vmdActive() {
         this.$refs.vmd.classList.add('active')
       },
@@ -195,9 +270,29 @@
       preview() {
         this.isPreview = !this.isPreview
       },
+      selectNote (note) {
+        // This will update the 'selectedNote' computed property
+        this.selectedId = note.id
+      },
+      openNoteContextMenu(note){
+        this.contextMenuOpNote = note;
+        this.noteContextMenu.popup(remote.getCurrentWindow());
+      },
+      saveNotes () {
+        // Don't forget to stringify to JSON before storing
+        localStorage.setItem('notes', JSON.stringify(this.notes))
+        console.log('Notes saved!', new Date())
+      },
       /**
        * 扩展 Tab 快捷键
        */
+      selectAll(){
+        this.__setSelection(0, this.vmdEditor.value.length)
+      },
+      copyAll(){
+        this.vmdEditor.select();
+        document.execCommand("Copy");
+      },
       addTab() {
         this.__updateInput(this.__localize('tabText'));
       },
@@ -618,11 +713,25 @@
           }
         )();
       }
-    }
+    },  // Change watchers
+    watch: {
+      // When our notes change, we save them
+      notes: {
+        // The method name
+        handler: 'saveNotes',
+        // We need this to watch each note's properties inside the array
+        deep: true,
+      },
+      // Let's save the selection too
+      selectedId (val, oldVal) {
+        localStorage.setItem('selected-id', val)
+      },
+    },
   }
 </script>
 
 <style scoped>
+
   *:focus {
     outline: none;
   }
@@ -632,6 +741,31 @@
     -moz-box-sizing: border-box;
     box-sizing: border-box;
   }
+  .material-icons {
+    font-size: 24px;
+    line-height: 1;
+    vertical-align: middle;
+    margin: -3px;
+    padding-bottom: 1px;
+  }
+
+  button {
+    border-radius: 3px;
+    border: none;
+    display: inline-block;
+    padding: 4px 6px;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background: #63c89b;
+  }
+
+  .toolbar {
+    padding: 4px;
+    box-sizing: border-box;
+  }
+
   .root {
     display: flex;
     width: 100%;
@@ -643,6 +777,22 @@
     width: 20%;
     box-sizing: border-box;
     margin-left: 2px;
+  }
+  .note {
+    padding: 10px;
+    cursor: pointer;
+  }
+
+  .note:hover {
+    background: #ade2ca;
+  }
+  .notes {
+    flex: auto 1 1;
+    overflow: auto;
+  }
+  .note.selected {
+    background: #40b883;
+    color: white;
   }
   .vmd {
     position: relative;
