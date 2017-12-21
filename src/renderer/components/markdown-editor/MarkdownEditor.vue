@@ -86,6 +86,7 @@
   import locale from './locale/en'
 
   const electron = require('electron');
+  const clipboard = electron.clipboard;
   const ipcRenderer = require('electron').ipcRenderer
   const remote = electron.remote;
   const Menu = remote.Menu;
@@ -366,8 +367,8 @@
         this.__setSelection(0, this.vmdEditor.value.length)
       },
       copyAll(){
-        this.vmdEditor.select();
-        document.execCommand("Copy");
+        console.log(this.__getSelection())
+        clipboard.writeText(this.__getSelection().text);
       },
       addTab() {
         this.__updateInput(this.__localize('tabText'));
