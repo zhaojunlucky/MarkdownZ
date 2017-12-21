@@ -39,7 +39,8 @@
       <div class="vmd-body" ref="vmdBody">
         <template v-if="selectedNote">
           <textarea class="vmd-editor" :style="vmdEditorStyle" ref="vmdEditor" v-model="selectedNote.content"
-                    title="This is a editor."
+                    title="Write with markdown"
+                    :disabled="selectedId == null"
                     @input="vmdInputting($event.target.value)"
                     @focus="vmdActive"
                     @blur="vmdInactive"
@@ -127,6 +128,11 @@
     }
   }
 
+  function loadSelectedId(){
+    let selId = localStorage.getItem('selected-id');
+    return selId == "null"? null : selId;
+  }
+
   export default {
     name: 'VueEditor',
     props: {
@@ -148,7 +154,7 @@
         isPreview: true,
         isSanitize: true,
         notes: JSON.parse(localStorage.getItem('notes')) || [],
-        selectedId: localStorage.getItem('selected-id') || null,
+        selectedId: loadSelectedId(),
         noteContextMenu: null,
         contextMenuOpNote: null,
       }
@@ -165,9 +171,15 @@
             const index = that.notes.indexOf(that.contextMenuOpNote)
             if (index !== -1) {
               that.notes.splice(index, 1);
+              console.log(index);
+              if((that.selectedId && that.selectedId === that.contextMenuOpNote.id) || !that.notes.length) {
+                that.selectedId = (that.notes.length)?that.notes[0].id : null; 
+              }
             }
-            if(that.selectNote && that.contextMenuOpNote.id === that.selectNote.id){
+
+            if((that.selectNote && that.contextMenuOpNote.id === that.selectNote.id) || that.notes.length == 0){
               that.selectNote = null;
+              that.selectedId = null;
             }
 
           }
@@ -191,7 +203,21 @@
       },
       selectedNote () {
         // We return the matching note with selectedId
-        return this.notes.find(note => note.id === this.selectedId)
+        let selNote = this.notes.find(note => note.id === this.selectedId)
+        if(!selNote){
+          const time = Date.now()
+          // Default new note
+          const note = {
+            id: String(time),
+            title: 'New note ' + (this.notes.length + 1),
+            content: "# Markdown Editor by MagicworldZ\n>  Another notes application",
+            created: time,
+            favorite: false,
+          }
+          return note;
+        }else{
+          return selNote;
+        }
       },
       sortedNotes () {
         return this.notes.slice().sort((a, b) => a.created - b.created)
