@@ -36,7 +36,7 @@ function createWindow () {
     promptResponse = null
     var promptWindow = new BrowserWindow({
       width: 400,
-      height: 200,
+      height: 200 + (45 * arg.inputs.length) ,
       show: false,
       resizable: true,
       movable: false,
@@ -50,18 +50,23 @@ function createWindow () {
       <div class="page">
           <header>${ arg.title }</header>
           <div class="content-area">
-              <input id="val" value="${arg.val}" autofocus />
+              ${
+                arg.inputs.map((item, i) =>
+                    `<div>${item.msg}:<input id="${item.name}" value="${item.val}"/></div>`
+                ).join('')
+              }
           </div>
           <div class="action-area">
+              <span class="error-msg" id="error-msg">
+              </span>
               <div class="button-strip"> 
-              <button onclick="ok()">Ok</button>
-              <button onclick="window.close()">Cancel</button>
+                <button onclick="ok()">Ok</button>
+                <button onclick="window.close()">Cancel</button>
               </div>
           </div>
       </div>
-    </body>
-    
-    <style>.smalltalk {
+    <style>
+.smalltalk {
     display: flex;
     
     align-items: center;
@@ -107,8 +112,6 @@ function createWindow () {
         min-width: 0;
     }
 }
-
-
 .smalltalk .page header {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -176,6 +179,13 @@ button {
     justify-content: flex-end;
 }
 
+.error-msg{
+  display: flex;
+  color: red;
+  flex-direction: row;
+  justify-content: flex-start;
+}
+
 .smalltalk .page .button-strip > button {
     margin-left: 10px;
 }
@@ -199,12 +209,38 @@ button {
     outline: none;
 }
 </style>
-    <script>
-      function ok(){
-        require('electron').ipcRenderer.send('prompt-response', document.getElementById('val').value);
-        window.close();
+
+    <script type="text/javascript">
+      let inputsNames = "${arg.inputs.map((item,i)=> item.name).join(",")}";
+      let requiredStr = "${arg.inputs.map((item,i)=>String(item.required)).join(",")}";
+
+      function getVal(id){
+        return document.getElementById(id).value;
       }
-    </script>`
+      function ok(){
+        let ret = '{';
+        const items = inputsNames.split(',');
+        const required = requiredStr.split(',');
+        for(let i in items){
+          let item = items[i];
+          let val = getVal(item);
+
+          if(required[i] == "true" && !val){
+            document.getElementById('error-msg').innerHTML = "Please input '<strong>" + item + "</strong>'";
+            return;
+          }
+          ret += '"' + item + '":"' + val + '"';
+          if(i != items.length - 1){
+            ret += ',';
+          } 
+        }
+        ret += "}";
+        require('electron').ipcRenderer.send('prompt-response', ret);
+        window.close();  
+      }
+    </script>
+   </body>`
+    console.log(promptHtml);
     promptWindow.loadURL('data:text/html,' + promptHtml)
     promptWindow.show()
     promptWindow.on('closed', function() {

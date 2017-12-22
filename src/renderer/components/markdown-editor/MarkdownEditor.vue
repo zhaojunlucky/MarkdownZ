@@ -168,16 +168,18 @@
       this.noteContextMenu = new Menu()
       this.noteContextMenu.append(new MenuItem({
         label: "New note with title", click: function(){
-          let title = ipcRenderer.sendSync('prompt', {title:'Enter the title', val: ''});
-          if(title != null){
-            that.addNoteWithTitle(title);
+          let ret = ipcRenderer.sendSync('prompt', {title:'Enter the title', inputs:[ {msg: "New note title", val:'', required: true, name: "title"}]});
+          if(ret != null){
+            let retJSON = JSON.parse(ret);
+            that.addNoteWithTitle(retJSON.title);
           }
         }
       }));
       this.noteContextMenu.append(new MenuItem({ label: 'Rename', click: function(){
-          let newTitle = ipcRenderer.sendSync('prompt', {title:'Rename', val: that.contextMenuOpNote.title});
-          if(newTitle){
-            that.contextMenuOpNote.title = newTitle;
+          let ret = ipcRenderer.sendSync('prompt', {title:'Rename', inputs:[ {msg: "New note title", val:that.contextMenuOpNote.title, required: true, name: "title"}]});
+          if(ret){
+            let retJSON = JSON.parse(ret)
+            that.contextMenuOpNote.title = retJSON.title;
           }
           that.contextMenuOpNote = null;
         }}))
@@ -187,7 +189,7 @@
             const index = that.notes.indexOf(that.contextMenuOpNote)
             if (index !== -1) {
               that.notes.splice(index, 1);
-              console.log(index);
+              
               if((that.selectedId && that.selectedId === that.contextMenuOpNote.id) || !that.notes.length) {
                 that.selectedId = (that.notes.length)?that.notes[0].id : null; 
               }
