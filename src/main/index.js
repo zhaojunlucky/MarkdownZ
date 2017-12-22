@@ -38,17 +38,35 @@ function createWindow () {
       width: 400,
       height: 200,
       show: false,
-      resizable: false,
+      resizable: true,
       movable: false,
       alwaysOnTop: true,
       frame: false
     })
     arg.val = arg.val || ''
-    const promptHtml = '<label for="val">' + arg.title + '</label>\
-    <input id="val" value="' + arg.val + '" autofocus />\
-    <button onclick="require(\'electron\').ipcRenderer.send(\'prompt-response\', document.getElementById(\'val\').value);window.close()">Ok</button>\
-    <button onclick="window.close()">Cancel</button>\
-    <style>body {font-family: sans-serif;} button {float:right; margin-left: 10px;} label,input {margin-bottom: 10px; width: 100%; display:block;}</style>'
+    
+    const promptHtml = `
+    <label for="val">${arg.title}</label>
+    <input id="val" value="${arg.val}" autofocus />
+    <button onclick="ok()">Ok</button>
+    <button onclick="window.close()">Cancel</button>
+    <style>
+    body {"Helvetica Neue", Helvetica, Arial, sans-serif} 
+    button {appearance: none;user-select: none;
+    background-image: linear-gradient(#ededed, #ededed 38%, #dedede);
+    font-family: Ubuntu, Arial, sans-serif;min-height: 2em;
+    min-width: 4emborder: 1px solid rgba(0, 0, 0, 0.25);
+    border-radius: 2px;box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.75);
+    color: #444;font: inherit;margin: 0 1px 0 0;
+    text-shadow: 0 1px 0 rgb(240, 240, 240);}
+
+    label,input {margin-bottom: 10px; width: 100%; display:block;} </style>
+    <script>
+      function ok(){
+        require('electron').ipcRenderer.send('prompt-response', document.getElementById('val').value);
+        window.close();
+      }
+    </script>`
     promptWindow.loadURL('data:text/html,' + promptHtml)
     promptWindow.show()
     promptWindow.on('closed', function() {

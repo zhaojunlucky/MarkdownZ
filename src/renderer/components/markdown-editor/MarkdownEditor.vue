@@ -91,6 +91,8 @@
   const remote = electron.remote;
   const Menu = remote.Menu;
   const MenuItem = remote.MenuItem;
+  const dateFormat = require('dateformat');
+
 
   function confirm(title, message){
     var dialog = remote.dialog;
@@ -151,7 +153,7 @@
         vmdFooter: null,
         vmdEditor: null,
         vmdPreview: null,
-        vmdInput: '---\nlayout: post\ntitle: "<title>"\ndate: <date>\ncategories: cate/["cat1", "cat2"]\n---\n\n',
+        vmdInput: '---\nlayout: post\ntitle: "<title>"\ndate: <date>\ncategories: category/["cat1", "cat2"]\n---\n\n',
         lang: 'en',
         isPreview: true,
         isSanitize: true,
@@ -287,28 +289,21 @@
     },
     methods: {
       addNote(){
-        const time = Date.now()
-        // Default new note
-        const note = {
-          id: String(time),
-          title: 'New note ' + (this.notes.length + 1),
-          content: this.vmdInput,
-          created: time,
-        }
-        // Add
-        this.notes.push(note)
-        // Select
-        this.selectNote(note)
+
+        this.addNoteWithTitle('New note ' + (this.notes.length + 1))
+
       },
       addNoteWithTitle(title){
         // Default new note
-        const time = Date.now();
+        const date = new Date();
         const note = {
-          id: String(time),
+          id: String(date.getTime()),
           title: title,
           content: this.vmdInput,
-          created: time,
+          created: date.getTime(),
         }
+        note.content = note.content.replace("<title>", note.title)
+        note.content = note.content.replace("<date>", dateFormat(date, "yyyy-mm-dd HH:MM:ss o"))
         // Add
         this.notes.push(note)
         // Select
