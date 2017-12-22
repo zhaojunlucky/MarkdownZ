@@ -106,6 +106,11 @@
             });
     return choice == 0;
   }
+
+  function inputPrompt(metadata){
+    let ret = ipcRenderer.sendSync('prompt', metadata);
+    return ret == null? null : JSON.parse(ret);
+  }
   // 配置marked环境
   marked.setOptions({
     highlight: function (code) {
@@ -168,18 +173,37 @@
       this.noteContextMenu = new Menu()
       this.noteContextMenu.append(new MenuItem({
         label: "New note with title", click: function(){
-          let ret = ipcRenderer.sendSync('prompt', {title:'Enter the title', inputs:[ {msg: "New note title", val:'', required: true, name: "title"}]});
+          let inputDef = {
+            title:'Enter the title', 
+            inputs:[{
+              msg: "New note title", 
+              val:'', 
+              required: true, 
+              name: "title"
+            }
+            ]
+          }
+
+          let ret = inputPrompt(inputDef);
           if(ret != null){
-            let retJSON = JSON.parse(ret);
-            that.addNoteWithTitle(retJSON.title);
+            that.addNoteWithTitle(ret.title);
           }
         }
       }));
       this.noteContextMenu.append(new MenuItem({ label: 'Rename', click: function(){
-          let ret = ipcRenderer.sendSync('prompt', {title:'Rename', inputs:[ {msg: "New note title", val:that.contextMenuOpNote.title, required: true, name: "title"}]});
+          let ret = inputPrompt({
+            title:'Rename', 
+            inputs:[ 
+            {
+              msg: "New note title", 
+              val:that.contextMenuOpNote.title, 
+              required: true, 
+              name: "title"
+            }
+            ]
+          })
           if(ret){
-            let retJSON = JSON.parse(ret)
-            that.contextMenuOpNote.title = retJSON.title;
+            that.contextMenuOpNote.title = ret.title;
           }
           that.contextMenuOpNote = null;
         }}))
