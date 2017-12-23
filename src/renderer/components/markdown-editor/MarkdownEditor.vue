@@ -14,8 +14,12 @@
         <div class="vmd-btn-group">
           <button type="button" class="vmd-btn vmd-btn-default" @click="addStrong" title="Bold (Ctrl + B)"><i class="fa fa-bold" aria-hidden="true"></i></button>
           <button type="button" class="vmd-btn vmd-btn-default" @click="addItalic" title="Italic (Ctrl + I)"><i class="fa fa-italic" aria-hidden="true"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading" title="Head 3 (Ctrl + 3)"><i class="fa fa-header" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading('#')" title="Head 1 (Ctrl + 1)"><i class="fa heading-bold" aria-hidden="true">H1</i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading('##')" title="Head 2 (Ctrl + 2)"><i class="fa heading-bold" aria-hidden="true">H2</i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading('###')" title="Head 3 (Ctrl + 3)"><i class="fa heading-bold" aria-hidden="true">H3</i></button>
           <button type="button" class="vmd-btn vmd-btn-default" @click="addStrikethrough" title="Strikethrough (Ctrl + D)"><i class="fa fa-strikethrough" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHR" title="Horizontal rule (Ctrl + R)"><i class="fa fa-minus" aria-hidden="true"></i></button>
+          
         </div>
         <div class="vmd-btn-group">
           <button type="button" class="vmd-btn vmd-btn-default" @click="addUl" title="Unordered list (Ctrl + U)"><i class="fa fa-list-ul" aria-hidden="true"></i></button>
@@ -48,7 +52,7 @@
                     @keydown.ctrl.i.prevent="addItalic"
                     @keydown.ctrl.d.prevent="addStrikethrough"
                     @keydown.ctrl.51.prevent="addHeading"
-                    @keydown.ctrl.r.prevent="addLine"
+                    @keydown.ctrl.r.prevent="addHR"
                     @keydown.ctrl.q.prevent="addQuote"
                     @keydown.ctrl.k.prevent="addCode"
                     @keydown.ctrl.l.prevent="addLink"
@@ -65,7 +69,6 @@
       </div>
       <div class="vmd-footer" ref="vmdFooter">
         <a type="button" class="vmd-btn vmd-btn-default vmd-btn-borderless">Markdown</a>
-        <span type="button" class="txt">Created: {{ selectedNote.created | date }}</span>
         <a type="button" class="txt">Words: {{ wordsCount }}</a>
         <a type="button" class="txt">Characters: {{ charactersCount }}</a>
       </div>
@@ -526,32 +529,40 @@
         this.__setSelection(cursor, cursor + chunk.length);
         this.__updateInput()
       },
-      addHeading() {
+      addHR(){
+        let chunk, cursor, selected = this.__getSelection();
+        let replaceText = '\n---\n\n';
+
+        this.__replaceSelection(replaceText);
+        cursor = selected.start + replaceText.length;
+        this.__setSelection(cursor, cursor);
+        this.__updateInput();
+      },
+      addHeading(txt) {
         let chunk, cursor, selected = this.__getSelection(), content = this.__getContent(), pointer, prevChar;
 
         chunk = selected.text;
 
         // 替换选择内容并将光标设置到chunk内容前
-        if ((pointer = 4, content.substr(selected.start - pointer, pointer) === '### ')
-          || (pointer = 3, content.substr(selected.start - pointer, pointer) === '###')) {
+        if ((pointer = txt.length + 1, content.substr(selected.start - pointer, pointer) === txt + ' ')
+          || (pointer = txt.length, content.substr(selected.start - pointer, pointer) === txt)) {
           this.__setSelection(selected.start - pointer, selected.end);
           this.__replaceSelection(chunk);
           cursor = selected.start - pointer;
         } else if (selected.start > 0 && (prevChar = content.substr(selected.start - 1, 1), !!prevChar && prevChar !== '\n')) {
-          this.__replaceSelection('\n\n### ' + chunk);
-          cursor = selected.start + 6;
+          let replaceText = '\n\n' + txt + ' ';
+          this.__replaceSelection(replaceText + chunk);
+          cursor = selected.start + replaceText.length;
         } else {
           // 元素前的空字符串
-          this.__replaceSelection('### ' + chunk);
-          cursor = selected.start + 4;
+          let replaceText = txt + ' ';
+          this.__replaceSelection(replaceText + chunk);
+          cursor = selected.start + replaceText.length ;
         }
 
         // 设置选择内容
         this.__setSelection(cursor, cursor + chunk.length);
         this.__updateInput()
-      },
-      addLine() {
-        this.__updateInput('\n' + this.__localize('lineText'));
       },
       addQuote() {
         let chunk, cursor, selected = this.__getSelection();
@@ -814,7 +825,7 @@
         } else {
           this.$emit('input', this.vmdEditor.value);
         }
-        this.selectedNote.content = this.vmdEditor.value;
+        //this.selectedNote.content = this.vmdEditor.value;
 
         this.vmdEditor.focus()
       },
@@ -870,10 +881,13 @@
        */
       __replaceSelection(text) {
         let e = this.vmdEditor;
+        let that = this;
         return (
           ('selectionStart' in e && function () {
             e.value = e.value.substr(0, e.selectionStart) + text + e.value.substr(e.selectionEnd, e.value.length);
             // Set cursor to the last replacement end
+            that.selectedNote.content = e.value;
+
             e.selectionStart = e.value.length;
             return null;
           }) ||
@@ -936,6 +950,11 @@
   .toolbar {
     padding: 4px;
     box-sizing: border-box;
+  }
+
+  .heading-bold {
+    display: inline-block;
+    font-weight: bold;
   }
 
   .txt {
