@@ -80,7 +80,6 @@
   import hljs from 'highlight.js'
 
   import './styles/markdown.css'
-  //import './styles/iconfont.css'
   import './styles/font-awesome-4.7.0/css/font-awesome.min.css'
 
   import locale from './locale/en'
