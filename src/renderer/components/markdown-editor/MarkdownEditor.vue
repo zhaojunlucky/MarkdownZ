@@ -2,7 +2,7 @@
   <div class="root">
     <aside class="side-bar">
       <div class="toolbar" id="test">
-        <button @click="addNote" :title="notes.length + ' note(s) already'"><i class="material-icons">add</i> Add note</button>
+        <button @click="addNote" :title="notes.length + ' note(s) already'"><i class="fa fa-plus" aria-hidden="true"></i> Add note</button>
       </div>
       <div class="notes">
         <div class="note" v-for="note of sortedNotes" :class="{selected: note === selectedNote}" @click="selectNote(note)" @contextmenu="openNoteContextMenu(note)">{{note.title}}</div>
@@ -12,27 +12,26 @@
     <div class="vmd" ref="vmd">
       <div class="vmd-header" ref="vmdHeader">
         <div class="vmd-btn-group">
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addStrong" title="Bold (Ctrl + B)"><i class="vf-bold"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addItalic" title="Italic (Ctrl + I)"><i class="vf-italic"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading" title="Head 3 (Ctrl + 3)"><i class="vf-header"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addStrikethrough" title="Strikethrough (Ctrl + D)"><i class="vf-strikethrough"></i>
-          </button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addStrong" title="Bold (Ctrl + B)"><i class="fa fa-bold" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addItalic" title="Italic (Ctrl + I)"><i class="fa fa-italic" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading" title="Head 3 (Ctrl + 3)"><i class="fa fa-header" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addStrikethrough" title="Strikethrough (Ctrl + D)"><i class="fa fa-strikethrough" aria-hidden="true"></i></button>
         </div>
         <div class="vmd-btn-group">
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addUl" title="Unordered list (Ctrl + U)"><i class="vf-list-ul"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addOl" title="Ordered list (Ctrl + O)"><i class="vf-list-ol"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addTable" title="Table (Ctrl + T)"><i class="vf-table"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addUl" title="Unordered list (Ctrl + U)"><i class="fa fa-list-ul" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addOl" title="Ordered list (Ctrl + O)"><i class="fa fa-list-ol" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addTable" title="Table (Ctrl + T)"><i class="fa fa-table" aria-hidden="true"></i></button>
         </div>
         <div class="vmd-btn-group">
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addLink" title="Hyperlink (Ctrl + L)"><i class="vf-chain"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addImage" title="Image (Ctrl + G)"><i class="vf-image"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addLink" title="Hyperlink (Ctrl + L)"><i class="fa fa-link" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addImage" title="Image (Ctrl + G)"><i class="fa fa-picture-o" aria-hidden="true"></i></button>
         </div>
         <div class="vmd-btn-group">
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addCode" title="Code (Ctrl + K)"><i class="vf-code"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addQuote" title="Quote (Ctrl + Q)"><i class="vf-quote-left"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addCode" title="Code (Ctrl + K)"><i class="fa fa-code" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addQuote" title="Quote (Ctrl + Q)"><i class="fa fa-quote-left" aria-hidden="true"></i></button>
         </div>
         <div class="vmd-btn-group">
-          <button type="button" title="Preview" class="vmd-btn vmd-btn-default" @click="preview"><i :class="previewClass"></i></button>
+          <button type="button" title="Preview" class="vmd-btn vmd-btn-default" @click="preview"><i :class="previewClass" aria-hidden="true"></i></button>
           <button type="button" title="HTML" class="vmd-btn vmd-btn-default" @click="sanitizeHtml">HTML</button>
         </div>
       </div>
@@ -81,7 +80,8 @@
   import hljs from 'highlight.js'
 
   import './styles/markdown.css'
-  import './styles/iconfont.css'
+  //import './styles/iconfont.css'
+  import './styles/font-awesome-4.7.0/css/font-awesome.min.css'
 
   import locale from './locale/en'
 
@@ -269,7 +269,7 @@
         }
       },
       previewClass() {
-        return this.isPreview ? 'vf-eye-slash' : 'vf-eye'
+        return this.isPreview ? 'fa fa-eye-slash' : 'fa fa-eye'
       },
       selectedNote () {
         // We return the matching note with selectedId
