@@ -93,6 +93,23 @@
   const MenuItem = remote.MenuItem;
   const dateFormat = require('dateformat');
 
+  const shell = require('electron').shell
+
+  function hackLinks(){
+    console.log('a');
+    const links = document.querySelectorAll('a[href]');
+
+    Array.prototype.forEach.call(links, function (link) {
+      const url = link.getAttribute('href')
+      if (url.indexOf('http') === 0) {
+        link.addEventListener('click', function (e) {
+          e.preventDefault()
+          shell.openExternal(url)
+        })
+      }
+    });
+  }
+
 
   function confirm(title, message){
     var dialog = remote.dialog;
@@ -166,6 +183,7 @@
         selectedId: loadSelectedId(),
         noteContextMenu: null,
         contextMenuOpNote: null,
+        addedLink: false,
       }
     },
     created(){
@@ -226,7 +244,17 @@
 
           }
           that.contextMenuOpNote = null;
-        }}))
+        }}));
+    },
+    updated: function () {
+      this.$nextTick(function () {
+        // Code that will run only after the
+        // entire view has been re-rendered
+        if(this.addedLink){
+          this.addedLink = false;
+          hackLinks();
+        };
+      })
     },
     computed: {
       /**
@@ -301,7 +329,8 @@
       this.vmdEditor.addEventListener('scroll', this.vmdSyncScrolling, false);
       this.vmdPreview.addEventListener('scroll', this.vmdSyncScrolling, false);
       // 自动获取焦点
-      this.vmdEditor.focus()
+      this.vmdEditor.focus();
+      hackLinks();
     },
     beforeDestroy() {
       // 移除滚动监听事件
@@ -380,7 +409,7 @@
       saveNotes () {
         // Don't forget to stringify to JSON before storing
         localStorage.setItem('notes', JSON.stringify(this.notes))
-        console.log('Notes saved!', new Date())
+        //console.log('Notes saved!', new Date())
       },
       /**
        * 扩展 Tab 快捷键
@@ -609,7 +638,7 @@
           })
 
         link = ret == null? null : ret.link;
-        let title = ret != null && ret.title ? re.title : link;
+        let title = ret != null && ret.title ? ret.title : link;
         let urlRegex = new RegExp('^((http|https)://|(mailto:)|(//))[a-z0-9]', 'i');
         
     
@@ -619,11 +648,14 @@
           let sanitizedLink = div.innerHTML;
 
           // 替换选择内容并将光标设置到chunk内容前
-          this.__replaceSelection('[' + title + '](' + sanitizedLink + ')');
+          let replaceContent = '[' + title + '](' + sanitizedLink + ')';
+          this.__replaceSelection(replaceContent);
           cursor = selected.start + 1;
 
           // 设置选择内容
-          this.__setSelection(cursor, cursor + chunk.length);
+          this.__setSelection(cursor - 1, cursor + replaceContent.length + 1);
+
+          this.addedLink = true;
         }
         this.__updateInput()
       },
@@ -659,11 +691,12 @@
           let sanitizedLink = div.innerHTML;
 
           // 替换选择内容并将光标设置到chunk内容前
-          this.__replaceSelection('\n![' + alternate + '](' + sanitizedLink + ' "' + alternate + '")');
-          cursor = selected.start + 3;
+          let replaceText = '![' + alternate + '](' + sanitizedLink + ' "' + alternate + '")';
+          this.__replaceSelection(replaceText);
+          cursor = selected.start;
 
           // 设置选择内容
-          this.__setSelection(cursor, cursor + chunk.length);
+          this.__setSelection(cursor, cursor + replaceText.length);
         }
         this.__updateInput()
       },
