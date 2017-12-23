@@ -38,6 +38,10 @@
           <button type="button" title="Preview" class="vmd-btn vmd-btn-default" @click="preview"><i :class="previewClass" aria-hidden="true"></i></button>
           <button type="button" title="HTML" class="vmd-btn vmd-btn-default" @click="sanitizeHtml">HTML</button>
         </div>
+        <div class="vmd-btn-group">
+          <button type="button" title="Save to GitHub" class="vmd-btn vmd-btn-default" @click="saveGitHub"><i class="fa fa-github" aria-hidden="true"></i></button>
+          <button type="button" title="Export to file" class="vmd-btn vmd-btn-default" @click=""><i class="fa fa-floppy-o" aria-hidden="true"></i></button>
+        </div>
       </div>
       <div class="vmd-body" ref="vmdBody">
         <template v-if="selectedNote">
@@ -376,6 +380,9 @@
       },
       sanitizeHtml() {
         this.isSanitize = !this.isSanitize;
+      },
+      saveGitHub() {
+
       },
       /**
        * 同步滚动
