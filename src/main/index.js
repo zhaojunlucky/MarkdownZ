@@ -36,7 +36,7 @@ function createWindow () {
     promptResponse = null
     var promptWindow = new BrowserWindow({
       width: 400,
-      height: 200 + (45 * arg.inputs.length) ,
+      height: 200 + (25 * arg.inputs.length) ,
       show: false,
       resizable: true,
       movable: false,

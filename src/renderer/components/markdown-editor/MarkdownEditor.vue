@@ -371,6 +371,7 @@
       selectNote (note) {
         // This will update the 'selectedNote' computed property
         this.selectedId = note.id
+        this.vmdEditor.focus()
       },
       openNoteContextMenu(note){
         this.contextMenuOpNote = note;
@@ -589,16 +590,36 @@
 
         chunk = selected.text;
 
-        link = prompt(this.__localize('linkTip'), 'http://');
+        let ret = inputPrompt({
+            title:'Hyperlink', 
+            inputs:[ 
+            {
+              msg: "Input URL", 
+              val: 'http://', 
+              required: true, 
+              name: "link"
+            },
+            {
+              msg: "Title (Optional)",
+              val: chunk,
+              required: false,
+              name: "title"
+            }
+            ]
+          })
 
+        link = ret == null? null : ret.link;
+        let title = ret != null && ret.title ? re.title : link;
         let urlRegex = new RegExp('^((http|https)://|(mailto:)|(//))[a-z0-9]', 'i');
+        
+    
         if (link !== null && link !== '' && link !== 'http://' && urlRegex.test(link)) {
           let div = document.createElement('div');
           div.appendChild(document.createTextNode(link));
           let sanitizedLink = div.innerHTML;
 
           // 替换选择内容并将光标设置到chunk内容前
-          this.__replaceSelection('[' + chunk + '](' + sanitizedLink + ')');
+          this.__replaceSelection('[' + title + '](' + sanitizedLink + ')');
           cursor = selected.start + 1;
 
           // 设置选择内容
@@ -611,7 +632,25 @@
 
         chunk = selected.text;
 
-        link = prompt(this.__localize('imageTip'), 'http://');
+        let ret = inputPrompt({
+            title:'Image', 
+            inputs:[ 
+            {
+              msg: "Input Image URL", 
+              val: 'http://', 
+              required: true, 
+              name: "link"
+            },
+            {
+              msg: "Alternate (Optional)",
+              val: chunk,
+              required: false,
+              name: "alternate"
+            }
+            ]
+          })
+        link = ret == null ? null : ret.link;
+        let alternate = ret != null &&ret.alternate ? ret.alternate : link;
 
         let urlRegex = new RegExp('^((http|https)://|(//))[a-z0-9]', 'i');
         if (link !== null && link !== '' && link !== 'http://' && urlRegex.test(link)) {
@@ -620,7 +659,7 @@
           let sanitizedLink = div.innerHTML;
 
           // 替换选择内容并将光标设置到chunk内容前
-          this.__replaceSelection('\n![' + chunk + '](' + sanitizedLink + ' "' + this.__localize('imageTitle') + '")');
+          this.__replaceSelection('\n![' + alternate + '](' + sanitizedLink + ' "' + alternate + '")');
           cursor = selected.start + 3;
 
           // 设置选择内容
@@ -735,7 +774,7 @@
       },
       __updateInput(txt) {
         if (txt) {
-          this.vmdEditor.value += txt
+          this.vmdEditor.value += txt;
         }
 
         if (!this.$props.value) {
@@ -743,6 +782,8 @@
         } else {
           this.$emit('input', this.vmdEditor.value);
         }
+        this.selectedNote.content = this.vmdEditor.value;
+
         this.vmdEditor.focus()
       },
       __localize(tag) {
