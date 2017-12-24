@@ -427,6 +427,12 @@
 
         return null;
       },
+      addUpdateDate(content){
+        let updateDate = "update: " + dateFormat(new Date(), "yyyy-mm-dd HH:MM:ss o");
+        let start = content.indexOf('---');
+        return content.slice(0, start + 3) + '\n' + updateDate + "\n" + content.slice(start + 4);
+
+      },
       processResult(err, status, body, header, name){
         if(err) {
           this.updateMessage();
@@ -440,32 +446,42 @@
         }
       },
       saveGitHub() {
-
-        if(!localStorage.getItem("gh_token")){
+        let ghToken = JSON.parse(localStorage.getItem("gh_token")) || {};
+        if(!ghToken.user || !ghToken.token){
           let inputDef = {
-            title:'Enter the GitHub personal access token', 
+            title:'Enter the GitHub user and access token', 
             inputs:[{
-              msg: "GitHub token", 
-              val:'', 
-              required: true, 
+              msg: "GitHub user",
+              val:'',
+              required: true,
+              name: "user"
+            },
+            {
+              msg: "GitHub token",
+              val:'',
+              required: true,
               name: "token"
             }
             ]
           }
           let ret = inputPrompt(inputDef);
-          if(ret && ret.token.trim()){
-            localStorage.setItem('gh_token', ret.token.trim());
+          if(ret && ret.token.trim() && ret.user.trim()){
+            ghToken = {"user": ret.user, "token": ret.token};
+            localStorage.setItem('gh_token', JSON.stringify(ghToken));
           } else{
             return;
           }
         }
 
-        const ghrepo = github.client(localStorage.getItem('gh_token')).repo('zhaojunlucky/zhaojunlucky.github.io');
+
+
+        const ghrepo = github.client(ghToken.token).repo(ghToken.user + '/' + ghToken.user + '.github.io');
 
 
         let that = this;
         let content = this.selectedNote.content;
         let name = this.parseTitleDate(content);
+        content = this.addUpdateDate(content);
 
         if(name){
           let filename = '_posts/' + name;
