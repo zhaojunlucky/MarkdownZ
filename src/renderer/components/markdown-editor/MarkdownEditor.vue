@@ -101,8 +101,9 @@
   const Menu = remote.Menu;
   const MenuItem = remote.MenuItem;
   const dateFormat = require('dateformat');
-  const Octokat = require('octokat');
-  const octo = new Octokat();
+  const github = require('octonode');
+  const ghrepo = github.client('[token]').repo('zhaojunlucky/zhaojunlucky.github.io');
+
 
   const shell = require('electron').shell;
   const crypto = require('crypto');
@@ -153,33 +154,6 @@
     return ret == null? null : JSON.parse(ret);
   }
 
-  function base64encode(str){
-    let encoded = new Buffer(str).toString('base64');
-    return encoded;
-  }
-  function parseGitHubErr(err){
-    let message = err.message;
-    let ret = {
-      "message" : "Unknown error",
-      "status" : 401
-    }
-    let matcher = message.match(/^.* (\d+)$/);
-    if(matcher != null){
-      ret.status = matcher[1];
-    }
-
-    matcher = message.match(/message":"(.*?)"/);
-    if(matcher){
-      ret.message = matcher[1];
-    }
-    return ret;
-  }
-  function getSHA1(str){
-    const hash = crypto.createHash('sha1');
-
-    hash.update(str);
-    return hash.digest('hex');
-  }
   // 配置marked环境
   marked.setOptions({
     highlight: function (code) {
@@ -405,7 +379,7 @@
 
       },
       updateMessage(message){
-        this.messageTxt = message;
+        this.messageTxt = message? message : "";
       },
       addNoteWithTitle(title){
         // Default new note
@@ -456,53 +430,46 @@
 
         return null;
       },
-      updateGitHub(filename, config){
-        var octo = new Octokat({token: ''});
-        var repo = octo.repos('zhaojunlucky', 'zhaojunlucky.github.io');
-        let that = this;
-        repo.contents(filename).add(config)
-        .then((info) => {
-          that.updateMessage('File: ' + filename +' saved. new sha is ', info.commit.sha);
-        }).then(null, (err) => {
-          that.updateMessage('');
-          console.log(err);
-          let errDetail = parseGitHubErr(err);
-          errorAlert("GitHub Error Status: " + err.statis, errDetail.message);
-        });
+      processResult(err, status, body, header, name){
+        if(err) {
+          this.updateMessage();
+          errorAlert("GitHub Error " + err.statusCode, err.message);
+        } else {
+          this.updateMessage("File " + name + " saved. New sha is " + status.commit.sha);
+          let that = this;
+          __debounce(function(e){
+            that.updateMessage();
+          }, 5000);
+        }
       },
       saveGitHub() {
-        let repo = octo.repos('zhaojunlucky', 'zhaojunlucky.github.io')
         let that = this;
         let content = this.selectedNote.content;
         let name = this.parseTitleDate(content);
 
         if(name){
           let filename = '_posts/' + name;
-          this.updateMessage("checking " + name + " exists...");
-          repo.contents(filename).fetch().then((info) => {
-                                                that.updateMessage('updating ' + name);
-                                                 
-                                                let config = {
-                                                  message: 'Updating ' + name,
-                                                  content: base64encode(content),
-                                                  sha: getSHA1(content), // the blob 
-                                                };
-                                                that.updateGitHub(filename, config);
-                                              }).then(null, (err) => {
-                                                let errDetail = parseGitHubErr(err);
-                                                if(errDetail.status == 404){
-                                                  that.updateMessage('creating ' + name);
-                                                  let config = {
-                                                    message: 'Creating ' + name,
-                                                    content: base64encode(content),
-                                                  };
-                                                  that.updateGitHub(filename, config);
-                                                }else{
-                                                  that.updateMessage('');
-                                                  errorAlert("GitHub Error", errDetail.message);
-                                                }
-                                                
-                                              });
+          this.updateMessage("Checking " + name + " exists...");
+          ghrepo.contents(filename, function (err, status, body, headers) {
+            if(err){
+              // create
+              if(err.statusCode == 404){
+                that.updateMessage('Creating ' + name);
+                ghrepo.createContents(filename, 'create ' + name, content, function (err, status, body, headers){
+                  that.processResult(err, status, body, headers, name);
+                }); //path
+
+              } else {
+                that.updateMessage();
+                errorAlert("GitHub Error " + err.statusCode, err.message)
+              }
+            } else{
+              that.updateMessage('Updating ' + name);
+              ghrepo.updateContents(filename, 'update ' + name, content, status.sha, function (err, status, body, headers){
+                that.processResult(err, status, body, headers, name);
+              }); //path
+            }
+          });
         } else{
           this.updateMessage("fail to save '" + this.selectedNote.title + "' to GitHub");
         }
