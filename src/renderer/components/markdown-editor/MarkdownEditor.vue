@@ -77,7 +77,7 @@
         <a type="button" class="vmd-btn vmd-btn-default vmd-btn-borderless">Markdown</a>
         <a type="button" class="txt">Words: {{ wordsCount }}</a>
         <a type="button" class="txt">Characters: {{ charactersCount }}</a>
-        <a type="button" class="message">{{ message }}</a>
+        <a type="button" class="message" @click="updateMessage()">{{ message }}</a>
       </div>
     </div>
   </div>
