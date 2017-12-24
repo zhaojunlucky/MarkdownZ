@@ -103,12 +103,7 @@
   const dateFormat = require('dateformat');
   const github = require('octonode');
   const fs = require('fs');
-
-  const ghrepo = github.client('[token]').repo('zhaojunlucky/zhaojunlucky.github.io');
-
-
   const shell = require('electron').shell;
-  const crypto = require('crypto');
 
   function hackLinks(){
     console.log('a');
@@ -445,6 +440,29 @@
         }
       },
       saveGitHub() {
+
+        if(!localStorage.getItem("gh_token")){
+          let inputDef = {
+            title:'Enter the GitHub personal access token', 
+            inputs:[{
+              msg: "GitHub token", 
+              val:'', 
+              required: true, 
+              name: "token"
+            }
+            ]
+          }
+          let ret = inputPrompt(inputDef);
+          if(ret && ret.token.trim()){
+            localStorage.setItem('gh_token', ret.token.trim());
+          } else{
+            return;
+          }
+        }
+
+        const ghrepo = github.client(localStorage.getItem('gh_token')).repo('zhaojunlucky/zhaojunlucky.github.io');
+
+
         let that = this;
         let content = this.selectedNote.content;
         let name = this.parseTitleDate(content);
