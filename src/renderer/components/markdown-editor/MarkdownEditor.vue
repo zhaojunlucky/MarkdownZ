@@ -40,7 +40,7 @@
         </div>
         <div class="vmd-btn-group">
           <button type="button" title="Save to GitHub" class="vmd-btn vmd-btn-default" @click="saveGitHub"><i class="fa fa-github" aria-hidden="true"></i></button>
-          <button type="button" title="Export to file" class="vmd-btn vmd-btn-default" @click=""><i class="fa fa-floppy-o" aria-hidden="true"></i></button>
+          <button type="button" title="Export to file" class="vmd-btn vmd-btn-default" @click="exportFile"><i class="fa fa-floppy-o" aria-hidden="true"></i></button>
         </div>
       </div>
       <div class="vmd-body" ref="vmdBody">
@@ -102,6 +102,8 @@
   const MenuItem = remote.MenuItem;
   const dateFormat = require('dateformat');
   const github = require('octonode');
+  const fs = require('fs');
+
   const ghrepo = github.client('[token]').repo('zhaojunlucky/zhaojunlucky.github.io');
 
 
@@ -439,7 +441,7 @@
           let that = this;
           __debounce(function(e){
             that.updateMessage();
-          }, 5000);
+          }, 10000);
         }
       },
       saveGitHub() {
@@ -474,6 +476,31 @@
           this.updateMessage("fail to save '" + this.selectedNote.title + "' to GitHub");
         }
         
+      },
+      exportFile(){
+        var dialog = remote.dialog;
+        let that = this;
+
+        dialog.showSaveDialog(remote.getCurrentWindow(), {
+            title: 'Save ' + this.selectedNote.title,
+            defaultPath: '~/' + this.selectedNote.title + ".markdown"
+          }, function(result){
+            if(result){
+              that.updateMessage("Saving file to " + result);
+              fs.writeFile(result, that.selectedNote.content, function(err) {
+                  if(err) {
+                    that.updateMessage();
+                    errorAlert('File Save Error', err)
+                  } else {
+                    that.updateMessage("File saved " + result);
+                    __debounce(function(e){
+                      that.updateMessage();
+                    }, 10000);
+                  }
+              }); 
+            }
+            
+        });
       },
       /**
        * 同步滚动
