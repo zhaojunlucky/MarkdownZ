@@ -77,6 +77,7 @@
         <a type="button" class="vmd-btn vmd-btn-default vmd-btn-borderless">Markdown</a>
         <a type="button" class="txt">Words: {{ wordsCount }}</a>
         <a type="button" class="txt">Characters: {{ charactersCount }}</a>
+        <a type="button" class="message">{{ message }}</a>
       </div>
     </div>
   </div>
@@ -100,8 +101,11 @@
   const Menu = remote.Menu;
   const MenuItem = remote.MenuItem;
   const dateFormat = require('dateformat');
+  const Octokat = require('octokat');
+  const octo = new Octokat();
 
-  const shell = require('electron').shell
+  const shell = require('electron').shell;
+  const crypto = require('crypto');
 
   function hackLinks(){
     console.log('a');
@@ -132,9 +136,49 @@
     return choice == 0;
   }
 
+  function errorAlert(title, message){
+    var dialog = remote.dialog;
+    dialog.showMessageBox(
+            remote.getCurrentWindow(),
+            {
+                type: 'error',
+                buttons: ['OK'],
+                title: title,
+                message: message
+            });
+  }
+
   function inputPrompt(metadata){
     let ret = ipcRenderer.sendSync('prompt', metadata);
     return ret == null? null : JSON.parse(ret);
+  }
+
+  function base64encode(str){
+    let encoded = new Buffer(str).toString('base64');
+    return encoded;
+  }
+  function parseGitHubErr(err){
+    let message = err.message;
+    let ret = {
+      "message" : "Unknown error",
+      "status" : 401
+    }
+    let matcher = message.match(/^.* (\d+)$/);
+    if(matcher != null){
+      ret.status = matcher[1];
+    }
+
+    matcher = message.match(/message":"(.*?)"/);
+    if(matcher){
+      ret.message = matcher[1];
+    }
+    return ret;
+  }
+  function getSHA1(str){
+    const hash = crypto.createHash('sha1');
+
+    hash.update(str);
+    return hash.digest('hex');
   }
   // 配置marked环境
   marked.setOptions({
@@ -183,7 +227,7 @@
         vmdFooter: null,
         vmdEditor: null,
         vmdPreview: null,
-        vmdInput: '---\nlayout: post\ntitle: "<title>"\ndate: <date>\ncategories: category/["cat1", "cat2"]\n---\n\n',
+        vmdInput: '---\nlayout: post\ntitle: "<title>"\ndate: <date>\ncategories: cat1 cat2\n---\n\n',
         lang: 'en',
         isPreview: true,
         isSanitize: true,
@@ -192,6 +236,7 @@
         noteContextMenu: null,
         contextMenuOpNote: null,
         addedLink: false,
+        messageTxt: "",
       }
     },
     created(){
@@ -326,6 +371,9 @@
           return this.selectedNote.content.split('').length
         }
       },
+      message (){
+        return this.messageTxt;
+      },
     },
     mounted() {
       // 缓存DOM组件
@@ -356,6 +404,9 @@
         this.addNoteWithTitle('New note ' + (this.notes.length + 1))
 
       },
+      updateMessage(message){
+        this.messageTxt = message;
+      },
       addNoteWithTitle(title){
         // Default new note
         const date = new Date();
@@ -381,8 +432,81 @@
       sanitizeHtml() {
         this.isSanitize = !this.isSanitize;
       },
-      saveGitHub() {
+      parseTitleDate(content){
+        let start = content.indexOf('---');
+        let end = content.indexOf(start + 3, '---');
+        let str = content.slice(start, end);
+        let titlePattern = /title: "(.*)"/
+        let datePattern = /date: (\d{4}-\d{2}-\d{2})/
 
+        let title = null;
+        let matcher = str.match(titlePattern);
+        if(matcher != null){
+          title = matcher[1];
+        }
+        let date = null;
+        matcher = str.match(datePattern);
+        if(matcher != null){
+          date = matcher[1];
+        }
+
+        if(title && date){
+          return date + '-' + title.replace(/(\s+)/g,'-') + '.markdown';
+        }
+
+        return null;
+      },
+      updateGitHub(filename, config){
+        var octo = new Octokat({token: ''});
+        var repo = octo.repos('zhaojunlucky', 'zhaojunlucky.github.io');
+        let that = this;
+        repo.contents(filename).add(config)
+        .then((info) => {
+          that.updateMessage('File: ' + filename +' saved. new sha is ', info.commit.sha);
+        }).then(null, (err) => {
+          that.updateMessage('');
+          console.log(err);
+          let errDetail = parseGitHubErr(err);
+          errorAlert("GitHub Error Status: " + err.statis, errDetail.message);
+        });
+      },
+      saveGitHub() {
+        let repo = octo.repos('zhaojunlucky', 'zhaojunlucky.github.io')
+        let that = this;
+        let content = this.selectedNote.content;
+        let name = this.parseTitleDate(content);
+
+        if(name){
+          let filename = '_posts/' + name;
+          this.updateMessage("checking " + name + " exists...");
+          repo.contents(filename).fetch().then((info) => {
+                                                that.updateMessage('updating ' + name);
+                                                 
+                                                let config = {
+                                                  message: 'Updating ' + name,
+                                                  content: base64encode(content),
+                                                  sha: getSHA1(content), // the blob 
+                                                };
+                                                that.updateGitHub(filename, config);
+                                              }).then(null, (err) => {
+                                                let errDetail = parseGitHubErr(err);
+                                                if(errDetail.status == 404){
+                                                  that.updateMessage('creating ' + name);
+                                                  let config = {
+                                                    message: 'Creating ' + name,
+                                                    content: base64encode(content),
+                                                  };
+                                                  that.updateGitHub(filename, config);
+                                                }else{
+                                                  that.updateMessage('');
+                                                  errorAlert("GitHub Error", errDetail.message);
+                                                }
+                                                
+                                              });
+        } else{
+          this.updateMessage("fail to save '" + this.selectedNote.title + "' to GitHub");
+        }
+        
       },
       /**
        * 同步滚动
@@ -971,6 +1095,28 @@
     padding: 6px 12px;
     margin-bottom: 0;
     font-size: 14px;
+    font-weight: 400;
+    line-height: 1.42857143;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    -ms-touch-action: manipulation;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    background-image: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+  }
+
+  .message {
+    display: inline-block;
+    padding: 6px 12px;
+    float: right;
+    margin-bottom: 0;
+    font-size: 11px;
     font-weight: 400;
     line-height: 1.42857143;
     text-align: center;
