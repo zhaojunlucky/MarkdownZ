@@ -261,8 +261,8 @@
               }
             }
 
-            if((that.selectNote && that.contextMenuOpNote.id === that.selectNote.id) || that.notes.length == 0){
-              that.selectNote = null;
+            if((that.selectedNote && that.contextMenuOpNote.id === that.selectedNote.id) || that.notes.length == 0){
+              that.selectedNote = null;
               that.selectedId = null;
             }
 
