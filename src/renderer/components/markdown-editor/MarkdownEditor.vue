@@ -262,7 +262,7 @@
             }
 
             if((that.selectedNote && that.contextMenuOpNote.id === that.selectedNote.id) || that.notes.length == 0){
-              that.selectedNote = null;
+              //that.selectedNote = null;
               that.selectedId = null;
             }
 
