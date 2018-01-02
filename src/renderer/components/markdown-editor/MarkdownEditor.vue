@@ -51,7 +51,7 @@
                     @input="vmdInputting($event.target.value)"
                     @focus="vmdActive"
                     @blur="vmdInactive"
-                    @keydown.tab.prevent="addTab"
+                    @keydown.tab.prevent="me.addTab"
                     @keydown.ctrl.b.prevent="addStrong"
                     @keydown.ctrl.i.prevent="addItalic"
                     @keydown.ctrl.d.prevent="addStrikethrough"
@@ -67,8 +67,8 @@
                     @keydown.ctrl.u.prevent="addUl"
                     @keydown.ctrl.o.prevent="addOl"
                     @keydown.enter.prevent="addEnter"
-                    @keydown.ctrl.a.prevent="selectAll"
-                    @keydown.ctrl.c.prevent="copyAll"
+                    @keydown.ctrl.a.prevent="me.selectAll"
+                    @keydown.ctrl.c.prevent="me.copySelection"
           ></textarea>
           <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
         </template>
@@ -93,6 +93,7 @@
   import './styles/font-awesome-4.7.0/css/font-awesome.min.css'
 
   import locale from './locale/en'
+  import MEditor from './lib/meditor'
 
   const electron = require('electron');
   const clipboard = electron.clipboard;
@@ -104,6 +105,7 @@
   const github = require('octonode');
   const fs = require('fs');
   const shell = require('electron').shell;
+
 
   function hackLinks(){
     console.log('a');
@@ -208,6 +210,7 @@
         contextMenuOpNote: null,
         addedLink: false,
         messageTxt: "",
+        md: null,
       }
     },
     created(){
@@ -573,19 +576,6 @@
         // Don't forget to stringify to JSON before storing
         localStorage.setItem('notes', JSON.stringify(this.notes))
         //console.log('Notes saved!', new Date())
-      },
-      /**
-       * 扩展 Tab 快捷键
-       */
-      selectAll(){
-        this.__setSelection(0, this.vmdEditor.value.length)
-      },
-      copyAll(){
-        console.log(this.__getSelection())
-        clipboard.writeText(this.__getSelection().text);
-      },
-      addTab() {
-        this.__updateInput(this.__localize('tabText'));
       },
       addEnter(e) {
         if(e.shiftKey){
@@ -961,6 +951,7 @@
         this.vmdFooter = this.$refs.vmdFooter;
         this.vmdEditor = this.$refs.vmdEditor;
         this.vmdPreview = this.$refs.vmdPreview;
+        this.me = new MEditor(this.vmdEditor);
       },
       __removeDom() {
         this.vmd = null;
