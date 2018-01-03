@@ -48,7 +48,6 @@
           <textarea class="vmd-editor" :style="vmdEditorStyle" ref="vmdEditor" v-model="selectedNote.content"
                     title="Write with markdown"
                     :disabled="selectedId == null"
-                    @input="vmdInputting($event.target.value)"
                     @focus="vmdActive"
                     @blur="vmdInactive"
                     @keydown.tab.prevent="me.addTab"
@@ -92,7 +91,6 @@
   import './styles/markdown.css'
   import './styles/font-awesome-4.7.0/css/font-awesome.min.css'
 
-  import locale from './locale/en'
   import MEditor from './lib/meditor'
 
   const electron = require('electron');
@@ -201,7 +199,6 @@
         vmdEditor: null,
         vmdPreview: null,
         vmdInput: '---\nlayout: post\ntitle: "<title>"\ndate: <date>\ncategories: cat1 cat2\n---\n\n',
-        lang: 'en',
         isPreview: true,
         isSanitize: true,
         notes: JSON.parse(localStorage.getItem('notes')) || [],
@@ -477,10 +474,7 @@
           }
         }
 
-
-
         const ghrepo = github.client(ghToken.token).repo(ghToken.user + '/' + ghToken.user + '.github.io');
-
 
         let that = this;
         let content = this.selectedNote.content;
@@ -553,13 +547,6 @@
       },
       vmdResize: __debounce(function (e) {
         this.__resize()
-      }, 100),
-      /**
-       * 监听用户输入
-       */
-      vmdInputting: __debounce(function (value) {
-        this.vmdEditor.value = value;
-        this.__updateInput()
       }, 100),
       preview() {
         this.isPreview = !this.isPreview
@@ -707,90 +694,6 @@
         this.vmdBody.style.height = (this.vmd.offsetHeight - vmdHeaderOffset - vmdFooterOffset) + 'px';
 
       },
-      __updateInput(txt) {
-        if (txt) {
-          this.vmdEditor.value += txt;
-        }
-
-        if (!this.$props.value) {
-          this.vmdInput = this.vmdEditor.value;
-        } else {
-          this.$emit('input', this.vmdEditor.value);
-        }
-        //this.selectedNote.content = this.vmdEditor.value;
-
-        this.vmdEditor.focus()
-      },
-      __localize(tag) {
-        return locale[this.lang][tag]
-      },
-      /**
-       * 获取编辑器的值
-       */
-      __getContent() {
-        return this.vmdEditor.value
-      },
-      /**
-       * 获取选择的内容
-       */
-      __getSelection() {
-        let e = this.vmdEditor;
-        return (
-          ('selectionStart' in e && function () {
-            let l = e.selectionEnd - e.selectionStart;
-            return {start: e.selectionStart, end: e.selectionEnd, length: l, text: e.value.substr(e.selectionStart, l)};
-          }) ||
-
-          /* 如果浏览器不支持 */
-          function () {
-            return null;
-          }
-        )();
-      },
-      /**
-       * 设置选择的内容
-       * @param start
-       * @param end
-       */
-      __setSelection(start, end) {
-        let e = this.vmdEditor;
-        return (
-          ('selectionStart' in e && function () {
-            e.selectionStart = start;
-            e.selectionEnd = end;
-            return null;
-          }) ||
-
-          /* 如果浏览器不支持 */
-          function () {
-            return null;
-          }
-        )();
-      },
-      /**
-       * 替换选择的内容
-       * @param text
-       */
-      __replaceSelection(text) {
-        let e = this.vmdEditor;
-        let that = this;
-        return (
-          ('selectionStart' in e && function () {
-            e.value = e.value.substr(0, e.selectionStart) + text + e.value.substr(e.selectionEnd, e.value.length);
-            // Set cursor to the last replacement end
-            that.selectedNote.content = e.value;
-
-            e.selectionStart = e.value.length;
-            return null;
-          }) ||
-
-          /* 如果浏览器不支持 */
-          function () {
-            e.value += text;
-            return null;
-          }
-        )();
-      }
     },  // Change watchers
     watch: {
       // When our notes change, we save them
@@ -803,6 +706,12 @@
       // Let's save the selection too
       selectedId (val, oldVal) {
         localStorage.setItem('selected-id', val)
+      },
+      selectedNote: {
+        deep: true,
+        handler: function(val){
+          
+        }
       },
     },
   }
