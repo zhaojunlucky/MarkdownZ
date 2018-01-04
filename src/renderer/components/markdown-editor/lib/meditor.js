@@ -36,11 +36,10 @@ export default class MEditor{
 > Another notes application which can integrate with GitHub Jekyll`
     }
 
-    static get Note(){
+    static get NoteTemplate(){
         return `---
 layout: post
-title: "<title>"
-data: <date>
+date: <date>
 categories: cat1 cat2
 ---`
     }
@@ -127,7 +126,6 @@ categories: cat1 cat2
              * - test
              * - (if press enter here need delete -)
              */
-             console.log('aaa');
             let delPattern = /^(\d+)\. $|^- $|^> $/
             if(sel.start == line.line.length + line.start && delPattern.test(line.line)){
                 txt = MEditor.Markdown.enter.repeat(2);

@@ -148,7 +148,7 @@
         vmdFooter: null,
         vmdEditor: null,
         vmdPreview: null,
-        vmdInput: '---\nlayout: post\ntitle: "<title>"\ndate: <date>\ncategories: cat1 cat2\n---\n\n',
+        vmdInput: MEditor.NoteTemplate,
         isPreview: true,
         isSanitize: true,
         notes: dataProvider.loadNotes(),
@@ -208,13 +208,13 @@
               that.notes.splice(index, 1);
               
               if((that.selectedId && that.selectedId === that.contextMenuOpNote.id) || !that.notes.length) {
-                that.selectedId = (that.notes.length)?that.notes[0].id : null; 
+                let newSelNote = (that.notes.length > 0)?that.notes[0] : null; 
+                if(newSelNote){
+                  that.selectNote(newSelNote);
+                } else{
+                  that.selectedId = null;
+                }
               }
-            }
-
-            if((that.selectedNote && that.contextMenuOpNote.id === that.selectedNote.id) || that.notes.length == 0){
-              //that.selectedNote = null;
-              that.selectedId = null;
             }
 
           }
@@ -254,8 +254,8 @@
           // Default new note
           const note = {
             id: String(time),
-            title: 'New note ' + (this.notes.length + 1),
-            content: "# Markdown Editor by MagicworldZ\n>  Another notes application",
+            title: 'Default Note',
+            content: MEditor.About,
             created: time,
             favorite: false,
           }
@@ -338,7 +338,6 @@
           content: this.vmdInput,
           created: date.getTime(),
         }
-        note.content = note.content.replace("<title>", note.title)
         note.content = note.content.replace("<date>", dateFormat(date, "yyyy-mm-dd HH:MM:ss o"))
         // Add
         this.notes.push(note)
@@ -354,34 +353,31 @@
       sanitizeHtml() {
         this.isSanitize = !this.isSanitize;
       },
-      parseTitleDate(content){
+      getFileName(content){
         let start = content.indexOf('---');
         let end = content.indexOf(start + 3, '---');
         let str = content.slice(start, end);
-        let titlePattern = /title: "(.*)"/
         let datePattern = /date: (\d{4}-\d{2}-\d{2})/
 
-        let title = null;
-        let matcher = str.match(titlePattern);
-        if(matcher != null){
-          title = matcher[1];
-        }
+        let title = this.selectedNote.title;
         let date = null;
         matcher = str.match(datePattern);
         if(matcher != null){
           date = matcher[1];
         }
 
-        if(title && date){
+        if(date){
           return date + '-' + title.replace(/(\s+)/g,'-') + '.markdown';
         }
 
         return null;
       },
-      addUpdateDate(content){
+      updateContent(content){
+        let title = "title: \"" + this.selectedNote.title + "\""
         let updateDate = "update: " + dateFormat(new Date(), "yyyy-mm-dd HH:MM:ss o");
+        let updateContent = '\n' + title + '\n' + updateDate + '\n';
         let start = content.indexOf('---');
-        return content.slice(0, start + 3) + '\n' + updateDate + "\n" + content.slice(start + 4);
+        return content.slice(0, start + 3) + updateContent + content.slice(start + 4);
 
       },
       processResult(err, status, body, header, name){
@@ -428,8 +424,8 @@
 
         let that = this;
         let content = this.selectedNote.content;
-        let name = this.parseTitleDate(content);
-        content = this.addUpdateDate(content);
+        let name = this.getFileName(content);
+        content = this.updateContent(content);
 
         if(name){
           let filename = '_posts/' + name;
@@ -763,6 +759,7 @@
   .note {
     padding: 10px;
     cursor: pointer;
+    font-size: 12px;
   }
 
   .note:hover {
