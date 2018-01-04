@@ -3,6 +3,7 @@ export default class DataProvider{
         this.keys = {
             "selectdId": "selected-id",
             "notes": "notes",
+            "ghToken": "gh_token",
         }
     }
 
@@ -44,4 +45,13 @@ export default class DataProvider{
         return selId == "null"? null : selId;
     }
 
+    saveGitHubToken(ghToken){
+        if(ghToken){
+            this.save(this.keys.ghToken, JSON.stringify(ghToken));
+        }
+    }
+
+    loadGitHubToken(){
+        return this.getJSON(this.keys.ghToken, {});
+    }
 }

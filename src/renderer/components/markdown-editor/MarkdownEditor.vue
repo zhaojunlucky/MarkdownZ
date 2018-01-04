@@ -94,6 +94,8 @@
   import MEditor from './lib/meditor'
   import DataProvider from './lib/data-provider'
   import ElectronUtil from './lib/electron-util'
+  import GitHub from './lib/github'
+  import Note from './lib/note'
 
   const electron = require('electron');
   const remote = electron.remote;
@@ -105,6 +107,7 @@
 
   const dataProvider = new DataProvider();
 
+  const gh = new GitHub();
 
   // 配置marked环境
   marked.setOptions({
@@ -112,7 +115,6 @@
       return hljs ? hljs.highlightAuto(code).value : code
     }
   });
-
   /**
    * 定义__debounce函数
    *
@@ -337,6 +339,7 @@
           title: title,
           content: this.vmdInput,
           created: date.getTime(),
+          github: false,
         }
         note.content = note.content.replace("<date>", dateFormat(date, "yyyy-mm-dd HH:MM:ss o"))
         // Add
@@ -353,47 +356,8 @@
       sanitizeHtml() {
         this.isSanitize = !this.isSanitize;
       },
-      getFileName(content){
-        let start = content.indexOf('---');
-        let end = content.indexOf(start + 3, '---');
-        let str = content.slice(start, end);
-        let datePattern = /date: (\d{4}-\d{2}-\d{2})/
-
-        let title = this.selectedNote.title;
-        let date = null;
-        matcher = str.match(datePattern);
-        if(matcher != null){
-          date = matcher[1];
-        }
-
-        if(date){
-          return date + '-' + title.replace(/(\s+)/g,'-') + '.markdown';
-        }
-
-        return null;
-      },
-      updateContent(content){
-        let title = "title: \"" + this.selectedNote.title + "\""
-        let updateDate = "update: " + dateFormat(new Date(), "yyyy-mm-dd HH:MM:ss o");
-        let updateContent = '\n' + title + '\n' + updateDate + '\n';
-        let start = content.indexOf('---');
-        return content.slice(0, start + 3) + updateContent + content.slice(start + 4);
-
-      },
-      processResult(err, status, body, header, name){
-        if(err) {
-          this.updateMessage();
-          ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message);
-        } else {
-          this.updateMessage("File " + name + " saved. New sha is " + status.commit.sha);
-          let that = this;
-          __debounce(function(e){
-            that.updateMessage();
-          }, 10000);
-        }
-      },
       saveGitHub() {
-        let ghToken = JSON.parse(localStorage.getItem("gh_token")) || {};
+        let ghToken = dataProvider.loadGitHubToken();
         if(!ghToken.user || !ghToken.token){
           let inputDef = {
             title:'Enter the GitHub user and access token', 
@@ -414,46 +378,27 @@
           let ret = ElectronUtil.inputPrompt(inputDef);
           if(ret && ret.token.trim() && ret.user.trim()){
             ghToken = {"user": ret.user, "token": ret.token};
-            localStorage.setItem('gh_token', JSON.stringify(ghToken));
+            dataProvider.saveGitHubToken(ghToken);
           } else{
             return;
           }
         }
 
-        const ghrepo = github.client(ghToken.token).repo(ghToken.user + '/' + ghToken.user + '.github.io');
-
         let that = this;
-        let content = this.selectedNote.content;
-        let name = this.getFileName(content);
-        content = this.updateContent(content);
-
-        if(name){
-          let filename = '_posts/' + name;
-          this.updateMessage("Checking " + name + " exists...");
-          ghrepo.contents(filename, function (err, status, body, headers) {
-            if(err){
-              // create
-              if(err.statusCode == 404){
-                that.updateMessage('Creating ' + name);
-                ghrepo.createContents(filename, 'create ' + name, content, function (err, status, body, headers){
-                  that.processResult(err, status, body, headers, name);
-                }); //path
-
-              } else {
-                that.updateMessage();
-                ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message)
-              }
-            } else{
-              that.updateMessage('Updating ' + name);
-              ghrepo.updateContents(filename, 'update ' + name, content, status.sha, function (err, status, body, headers){
-                that.processResult(err, status, body, headers, name);
-              }); //path
-            }
-          });
-        } else{
-          this.updateMessage("fail to save '" + this.selectedNote.title + "' to GitHub");
-        }
-        
+        let selNote = this.selectedNote;
+        let note = new Note(selNote);
+        let ghfilename = note.ghfilename;
+        gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, function(status){
+          that.updateMessage(status);
+        }).then(function(status){
+          that.updateMessage(`File ${ghfilename} saved. New sha is ${status.commit.sha}`);
+          selNote.github = true;
+          __debounce(function(e){
+            that.updateMessage();
+          }, 10000);
+        }).catch(function(err){
+          ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message);
+        });
       },
       exportFile(){
         var dialog = remote.dialog;
