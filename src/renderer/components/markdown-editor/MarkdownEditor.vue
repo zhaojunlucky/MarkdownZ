@@ -47,7 +47,7 @@
         <template v-if="selectedNote">
           <textarea class="vmd-editor" :style="vmdEditorStyle" ref="vmdEditor" v-model="selectedNote.content"
                     title="Write with markdown"
-                    :disabled="selectedId == null"
+                    :disabled="selectedId == null || selectedNote.id == null"
                     @focus="vmdActive"
                     @blur="vmdInactive"
                     @keydown.tab.prevent="me.addTab"
@@ -104,7 +104,7 @@
   const dateFormat = require('dateformat');
   const github = require('octonode');
   const fs = require('fs');
-
+  console.log('start');
   const dataProvider = new DataProvider();
 
   const gh = new GitHub();
@@ -255,11 +255,10 @@
           const time = Date.now()
           // Default new note
           const note = {
-            id: String(time),
+            id: null,
             title: 'Default Note',
             content: MEditor.About,
             created: time,
-            favorite: false,
           }
           return note;
         }else{
@@ -586,7 +585,7 @@
       notes: {
         // The method name
         handler: function(){
-          dataProvider.saveNotes();
+          dataProvider.saveNotes(this.notes);
         },
         // We need this to watch each note's properties inside the array
         deep: true,

@@ -37,11 +37,7 @@ export default class MEditor{
     }
 
     static get NoteTemplate(){
-        return `---
-layout: post
-date: <date>
-categories: cat1 cat2
----`
+        return '---\nlayout: post\ndate: <date>\ncategories: cat1 cat2\n---\n'
     }
 
     get value(){
