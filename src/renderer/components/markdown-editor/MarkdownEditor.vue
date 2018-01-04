@@ -92,64 +92,19 @@
   import './styles/font-awesome-4.7.0/css/font-awesome.min.css'
 
   import MEditor from './lib/meditor'
+  import DataProvider from './lib/data-provider'
+  import ElectronUtil from './lib/electron-util'
 
   const electron = require('electron');
-  const clipboard = electron.clipboard;
-  const ipcRenderer = require('electron').ipcRenderer
   const remote = electron.remote;
   const Menu = remote.Menu;
   const MenuItem = remote.MenuItem;
   const dateFormat = require('dateformat');
   const github = require('octonode');
   const fs = require('fs');
-  const shell = require('electron').shell;
 
+  const dataProvider = new DataProvider();
 
-  function hackLinks(){
-    console.log('a');
-    const links = document.querySelectorAll('a[href]');
-
-    Array.prototype.forEach.call(links, function (link) {
-      const url = link.getAttribute('href')
-      if (url.indexOf('http') === 0) {
-        link.addEventListener('click', function (e) {
-          e.preventDefault()
-          shell.openExternal(url)
-        })
-      }
-    });
-  }
-
-
-  function confirm(title, message){
-    var dialog = remote.dialog;
-    var choice = dialog.showMessageBox(
-            remote.getCurrentWindow(),
-            {
-                type: 'question',
-                buttons: ['Yes', 'No'],
-                title: title,
-                message: message
-            });
-    return choice == 0;
-  }
-
-  function errorAlert(title, message){
-    var dialog = remote.dialog;
-    dialog.showMessageBox(
-            remote.getCurrentWindow(),
-            {
-                type: 'error',
-                buttons: ['OK'],
-                title: title,
-                message: message
-            });
-  }
-
-  function inputPrompt(metadata){
-    let ret = ipcRenderer.sendSync('prompt', metadata);
-    return ret == null? null : JSON.parse(ret);
-  }
 
   // 配置marked环境
   marked.setOptions({
@@ -177,11 +132,6 @@
     }
   }
 
-  function loadSelectedId(){
-    let selId = localStorage.getItem('selected-id');
-    return selId == "null"? null : selId;
-  }
-
   export default {
     name: 'VueEditor',
     props: {
@@ -201,8 +151,8 @@
         vmdInput: '---\nlayout: post\ntitle: "<title>"\ndate: <date>\ncategories: cat1 cat2\n---\n\n',
         isPreview: true,
         isSanitize: true,
-        notes: JSON.parse(localStorage.getItem('notes')) || [],
-        selectedId: loadSelectedId(),
+        notes: dataProvider.loadNotes(),
+        selectedId: dataProvider.loadSelectedNoteId(),
         noteContextMenu: null,
         contextMenuOpNote: null,
         addedLink: false,
@@ -227,14 +177,14 @@
             ]
           }
 
-          let ret = inputPrompt(inputDef);
+          let ret = ElectronUtil.inputPrompt(inputDef);
           if(ret != null){
             that.addNoteWithTitle(ret.title);
           }
         }
       }));
       this.noteContextMenu.append(new MenuItem({ label: 'Rename', click: function(){
-          let ret = inputPrompt({
+          let ret = ElectronUtil.inputPrompt({
             title:'Rename', 
             inputs:[ 
             {
@@ -252,7 +202,7 @@
         }}))
       this.noteContextMenu.append(new MenuItem({ type: 'separator' }))
       this.noteContextMenu.append(new MenuItem({ label: 'Delete', click: function(){
-          if(confirm("Confirm", "Are you sure to delete '" + that.contextMenuOpNote.title + "' ?")){
+          if(ElectronUtil.confirm("Confirm", "Are you sure to delete '" + that.contextMenuOpNote.title + "' ?")){
             const index = that.notes.indexOf(that.contextMenuOpNote)
             if (index !== -1) {
               that.notes.splice(index, 1);
@@ -277,7 +227,7 @@
         // entire view has been re-rendered
         if(this.addedLink){
           this.addedLink = false;
-          hackLinks();
+          ElectronUtil.hackLinks();
         };
       })
     },
@@ -358,11 +308,11 @@
       this.vmdPreview.addEventListener('scroll', this.vmdSyncScrolling, false);
       // 自动获取焦点
       this.vmdEditor.focus();
-      hackLinks();
+      ElectronUtil.hackLinks();
     },
     beforeDestroy() {
       // 移除滚动监听事件
-      this.saveNotes()
+      dataProvider.saveNotes()
       window.removeEventListener('resize', this.vmdResize, false);
       this.vmdEditor.removeEventListener('scroll', this.vmdSyncScrolling, false);
       this.vmdPreview.removeEventListener('scroll', this.vmdSyncScrolling, false);
@@ -437,7 +387,7 @@
       processResult(err, status, body, header, name){
         if(err) {
           this.updateMessage();
-          errorAlert("GitHub Error " + err.statusCode, err.message);
+          ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message);
         } else {
           this.updateMessage("File " + name + " saved. New sha is " + status.commit.sha);
           let that = this;
@@ -465,7 +415,7 @@
             }
             ]
           }
-          let ret = inputPrompt(inputDef);
+          let ret = ElectronUtil.inputPrompt(inputDef);
           if(ret && ret.token.trim() && ret.user.trim()){
             ghToken = {"user": ret.user, "token": ret.token};
             localStorage.setItem('gh_token', JSON.stringify(ghToken));
@@ -495,7 +445,7 @@
 
               } else {
                 that.updateMessage();
-                errorAlert("GitHub Error " + err.statusCode, err.message)
+                ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message)
               }
             } else{
               that.updateMessage('Updating ' + name);
@@ -522,7 +472,7 @@
               fs.writeFile(result, that.selectedNote.content, function(err) {
                   if(err) {
                     that.updateMessage();
-                    errorAlert('File Save Error', err)
+                    ElectronUtil.errorAlert('File Save Error', err)
                   } else {
                     that.updateMessage("File saved " + result);
                     __debounce(function(e){
@@ -560,11 +510,6 @@
         this.contextMenuOpNote = note;
         this.noteContextMenu.popup(remote.getCurrentWindow());
       },
-      saveNotes () {
-        // Don't forget to stringify to JSON before storing
-        localStorage.setItem('notes', JSON.stringify(this.notes))
-        //console.log('Notes saved!', new Date())
-      },
       addBold(){
         this.me.addBold();
       },
@@ -590,7 +535,7 @@
         let sel = this.me.selection;
         let link;
 
-        let ret = inputPrompt({
+        let ret = ElectronUtil.inputPrompt({
             title:'Hyperlink', 
             inputs:[ 
             {
@@ -628,7 +573,7 @@
       addImage() {
         let sel = this.me.selction;
         let link;
-        let ret = inputPrompt({
+        let ret = ElectronUtil.inputPrompt({
             title:'Image', 
             inputs:[ 
             {
@@ -699,13 +644,15 @@
       // When our notes change, we save them
       notes: {
         // The method name
-        handler: 'saveNotes',
+        handler: function(){
+          dataProvider.saveNotes();
+        },
         // We need this to watch each note's properties inside the array
         deep: true,
       },
       // Let's save the selection too
       selectedId (val, oldVal) {
-        localStorage.setItem('selected-id', val)
+        dataProvider.saveSelectedNoteId(val);
       },
       selectedNote: {
         deep: true,
