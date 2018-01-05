@@ -68,6 +68,8 @@
                     @keydown.enter.prevent="me.addEnter"
                     @keydown.ctrl.a.prevent="me.selectAll"
                     @keydown.ctrl.c.prevent="me.copySelection"
+                    @keydown.ctrl.z.prevent="selectedNote.undo"
+                    @keydown.ctrl.y.prevent="selectedNote.redo"
           ></textarea>
           <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
         </template>
@@ -102,8 +104,6 @@
   const remote = electron.remote;
   const Menu = remote.Menu;
   const MenuItem = remote.MenuItem;
-  const dateFormat = require('dateformat');
-  const github = require('octonode');
   const fs = require('fs');
   console.log('start');
   const dataProvider = new DataProvider();

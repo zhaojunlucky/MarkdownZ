@@ -4,12 +4,16 @@ export default class RedoUndo{
         this.redoStack = [];
         this.max = size;
         this.capacity = this.max * 2;
+        this.current = null;
+        console.log('RedoUndo');
     }
 
-    push(val){
-        this.undoStack.push(val);
-        if(this.redoStack.length){
-            this.redoStack = [];
+    push(oldVal, newVal){
+        this.undoStack.push(oldVal);
+        if(this.redoStack.length > 1 || !this.redoStack.length){
+            this.redoStack = [newVal];
+        } else{
+            this.redoStack[0] = newVal;
         }
         if(this.undoStack.length > this.capacity){
             this.undoStack = this.undoStack.slice[this.max];
@@ -24,18 +28,18 @@ export default class RedoUndo{
         return this.redoStack.length > 0;
     }
 
-    get undo(){
+    undo(){
         let val = this.undoStack.pop();
-        if(val){
+        if(val && this.undoStack.length % this.max != 0){
             this.redoStack.push(val);
         }
         
         return val;
     }
 
-    get redo(){
+    redo(){
         let val = this.redoStack.pop();
-        if(val){
+        if(val && this.redoStack.length != 0){
             this.undoStack.push(val);
         }
         return val;

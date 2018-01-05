@@ -30,6 +30,20 @@ export default class Note{
         this.undoredo.push(oldVal);
     }
 
+    redo(){
+        let val = this.undoredo.redo();
+        if(val){
+            this.data.content = val;
+        }
+    }
+
+    undo(){
+        let val = this.undoredo.undo();
+        if(val){
+            this.data.content = val;
+        }
+    }
+
     get data(){
         return this._data;
     }
@@ -51,7 +65,7 @@ export default class Note{
     }
 
     set content(val){
-        this.undoredo.push(val);
+        this.undoredo.push(this.data.content, val);
         this.data.content = val;
     }
 
