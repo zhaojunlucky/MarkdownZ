@@ -2,7 +2,7 @@
   <div class="root">
     <aside class="side-bar">
       <div class="toolbar" id="test">
-        <button @click="addNote" :title="notes.length + ' note(s) already'"><i class="fa fa-plus" aria-hidden="true"></i> Add note</button>
+        <button @click="addNote" :title="noteManager.notes.length + ' note(s) already'"><i class="fa fa-plus" aria-hidden="true"></i> Add note</button>
       </div>
       <div class="notes">
         <div class="note" v-for="note of sortedNotes" :class="{selected: note === selectedNote}" @click="selectNote(note)" @contextmenu="openNoteContextMenu(note)">{{note.title}}</div>
@@ -96,6 +96,7 @@
   import ElectronUtil from './lib/electron-util'
   import GitHub from './lib/github'
   import Note from './lib/note'
+  import NoteManager from './lib/note-manager'
 
   const electron = require('electron');
   const remote = electron.remote;
@@ -106,7 +107,6 @@
   const fs = require('fs');
   console.log('start');
   const dataProvider = new DataProvider();
-
   const gh = new GitHub();
 
   // 配置marked环境
@@ -150,10 +150,8 @@
         vmdFooter: null,
         vmdEditor: null,
         vmdPreview: null,
-        vmdInput: MEditor.NoteTemplate,
         isPreview: true,
         isSanitize: true,
-        notes: dataProvider.loadNotes(),
         selectedId: dataProvider.loadSelectedNoteId(),
         noteContextMenu: null,
         contextMenuOpNote: null,
@@ -161,6 +159,7 @@
         messageTxt: "",
         me: null,
         markdown: MEditor.Markdown,
+        noteManager: new NoteManager(dataProvider),
       }
     },
     created(){
@@ -213,20 +212,8 @@
         }}))
       this.noteContextMenu.append(new MenuItem({ type: 'separator' }))
       this.noteContextMenu.append(new MenuItem({ label: 'Delete', click: function(){
-          if(ElectronUtil.confirm("Confirm", "Are you sure to delete '" + that.contextMenuOpNote.title + "' ?")){
-            const index = that.notes.indexOf(that.contextMenuOpNote)
-            if (index !== -1) {
-              that.notes.splice(index, 1);
-              
-              if((that.selectedId && that.selectedId === that.contextMenuOpNote.id) || !that.notes.length) {
-                let newSelNote = (that.notes.length > 0)?that.notes[0] : null; 
-                if(newSelNote){
-                  that.selectNote(newSelNote);
-                } else{
-                  that.selectedId = null;
-                }
-              }
-            }
+          if(ElectronUtil.confirm("Confirm", `Are you sure to delete ${that.contextMenuOpNote.title} ?`)){
+            that.removeNote(that.noteManager.removeNote(that.contextMenuOpNote));
           }
           that.contextMenuOpNote = null;
         }}));
@@ -258,23 +245,10 @@
       },
       selectedNote () {
         // We return the matching note with selectedId
-        let selNote = this.notes.find(note => note.id === this.selectedId)
-        if(!selNote){
-          const time = Date.now()
-          // Default new note
-          const note = {
-            id: null,
-            title: 'Default Note',
-            content: MEditor.About,
-            created: time,
-          }
-          return note;
-        }else{
-          return selNote;
-        }
+        return this.noteManager.findNoteById(this.selectedId, Note.DefaultNote);
       },
       sortedNotes () {
-        return this.notes.slice().sort((a, b) => a.created - b.created)
+        return this.noteManager.notes.slice().sort((a, b) => a.created - b.created)
       },
       linesCount () {
         if (this.selectedNote) {
@@ -321,7 +295,7 @@
     },
     beforeDestroy() {
       // 移除滚动监听事件
-      dataProvider.saveNotes()
+      dataProvider.saveNotes(this.noteManager.rawNotes)
       window.removeEventListener('resize', this.vmdResize, false);
       this.vmdEditor.removeEventListener('scroll', this.vmdSyncScrolling, false);
       this.vmdPreview.removeEventListener('scroll', this.vmdSyncScrolling, false);
@@ -330,6 +304,9 @@
       this.__removeDom();
     },
     methods: {
+      onReplace(oldVal, newVal){
+        this.selectedNote.onReplace(oldVal, newVal);
+      },
       checkGHToken(){
         return new Promise(function(resolve, reject){
           let ghToken = dataProvider.loadGitHubToken();
@@ -378,26 +355,13 @@
         });
       },
       addNote(){
-        this.addNoteWithTitle('New note ' + (this.notes.length + 1))
+        this.selectNote(this.noteManager.addNote());
       },
       updateMessage(message){
         this.messageTxt = message? message : "";
       },
       addNoteWithTitle(title){
-        // Default new note
-        const date = new Date();
-        const note = {
-          id: String(date.getTime()),
-          title: title,
-          content: this.vmdInput,
-          created: date.getTime(),
-          github: false,
-        }
-        note.content = note.content.replace("<date>", dateFormat(date, "yyyy-mm-dd HH:MM:ss o"))
-        // Add
-        this.notes.push(note)
-        // Select
-        this.selectNote(note)
+        this.selectNote(this.noteManager.addNote(title));
       },
       vmdActive() {
         this.$refs.vmd.classList.add('active')
@@ -473,6 +437,13 @@
         // This will update the 'selectedNote' computed property
         this.selectedId = note.id
         this.vmdEditor.focus()
+      },
+      removeNote(note){
+        if(note){
+          if(note.id === this.selectedId){
+            this.selectedId = this.noteManager.notes.length? 0: null;
+          }
+        }
       },
       openNoteContextMenu(note){
         this.contextMenuOpNote = note;
@@ -592,6 +563,7 @@
         this.vmdEditor = this.$refs.vmdEditor;
         this.vmdPreview = this.$refs.vmdPreview;
         this.me = new MEditor(this.vmdEditor);
+        this.me.addEventListener('onReplace', this.onReplace);
       },
       __removeDom() {
         this.vmd = null;
@@ -610,10 +582,10 @@
     },  // Change watchers
     watch: {
       // When our notes change, we save them
-      notes: {
+      noteManager: {
         // The method name
         handler: function(){
-          dataProvider.saveNotes(this.notes);
+          dataProvider.saveNotes(this.noteManager.rawNotes);
         },
         // We need this to watch each note's properties inside the array
         deep: true,

@@ -28,13 +28,8 @@ export default class MEditor{
         };
     }
 
-    static get About(){
-        return `# Markdown Editor by MagicworldZ
-> Another notes application which can integrate with GitHub Jekyll`
-    }
-
-    static get NoteTemplate(){
-        return '---\nlayout: post\ndate: <date>\ncategories: cat1 cat2\n---\n'
+    addEventListener(event, cb){
+        this.eventListener[event] = cb;
     }
 
     get value(){

@@ -2,12 +2,36 @@ import RedoUndo from './redoundo'
 
 export default class Note{
     constructor(data){
-        this.data = data;
+        console.log('Note');
+        this._data = data;
         this.undoredo = new RedoUndo(20);
     }
 
+    static get NoteTemplate(){
+        return '---\nlayout: post\ndate: <date>\ncategories: cat1 cat2\n---\n'
+    }
+
+    static get About(){
+        return '# Markdown Editor by MagicworldZ\n> Another notes application which can integrate with GitHub Jekyll'
+    }
+
+    static get DefaultNote(){
+        const note = {
+            id: null,
+            title: 'Default Note',
+            content: Note.About,
+            created: null,
+        }
+        return note;
+    }
+
+    onReplace(oldVal, newVal){
+        this.content = newVal;
+        this.undoredo.push(oldVal);
+    }
+
     get data(){
-        return this.data;
+        return this._data;
     }
 
     get id(){
@@ -27,7 +51,7 @@ export default class Note{
     }
 
     set content(val){
-        undoredo.push(val);
+        this.undoredo.push(val);
         this.data.content = val;
     }
 

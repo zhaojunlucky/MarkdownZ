@@ -1,17 +1,23 @@
-import DataProvider from './lib/data-provider'
+import DataProvider from './data-provider'
+import Note from './note'
 
 export default class NoteManager{
-    constructor(){
-        this.dataProvider = new DataProvider();
-        this.notes = [];
+    constructor(dataProvider){
+        console.log('NoteManager');
+        this.dataProvider = dataProvider;
+        this._notes = [];
         let that = this;
         this.dataProvider.loadNotes().forEach(function(el){
-                that.notes.push(new Note(el));
+                that._notes.push(new Note(el));
         });
     }
 
-    getNoteById(id){
-        this.notes.find(note => note.id === id);
+    get notes(){
+        return this._notes;
+    }
+
+    findNoteById(id, defaultNote = null){
+        return this.notes.find(note => note.id === id) || defaultNote;
     }
 
     addNote(title){
@@ -28,11 +34,11 @@ export default class NoteManager{
         const data = {
           id: String(date.getTime()),
           title: title,
-          content: this.vmdInput,
+          content: Note.NoteTemplate.replace("<date>", dateFormat(date, "yyyy-mm-dd HH:MM:ss o")),
           created: date.getTime(),
           github: false,
         }
-        data.content = data.content.replace("<date>", dateFormat(date, "yyyy-mm-dd HH:MM:ss o"))
+
         let note = new Note();
         this.notes.push(note);
         return note;
@@ -56,11 +62,7 @@ export default class NoteManager{
         this.notes.splice(index, 1);
     }
 
-    get length(){
-        return this.notes.length;
-    }
-
-    get rawData(){
+    get rawNotes(){
         let arr = [];
         this.notes.forEach(function(el){
             arr.push(el.data);
