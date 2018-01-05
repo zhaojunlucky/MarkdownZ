@@ -1,47 +1,45 @@
+import RedoUndoStack from './redoundo-stack'
+
 export default class RedoUndo{
     constructor(size){
-        this.undoStack = [];
-        this.redoStack = [];
-        this.max = size;
-        this.capacity = this.max * 2;
-        this.current = null;
+        this.stack = [];
+        this.size = size;
+        this.redoundoStack = null;
         console.log('RedoUndo');
     }
 
     push(oldVal, newVal){
-        this.undoStack.push(oldVal);
-        if(this.redoStack.length > 1 || !this.redoStack.length){
-            this.redoStack = [newVal];
-        } else{
-            this.redoStack[0] = newVal;
+        if(this.redoundoStack){
+            this.stack = this.redoundoStack.validate();
+            this.redoundoStack = null;
         }
-        if(this.undoStack.length > this.capacity){
-            this.undoStack = this.undoStack.slice[this.max];
+
+        this.stack.push(oldVal);
+        if(this.stack.length > this.size){
+            this.stack = this.stack.slice(this.length - this.size);
         }
+        this.current = newVal;
     }
 
     get canUndo() {
-        return this.undoStack.length > 0 && this.redoStack.length < this.max;
+        return this.stack.length > 0 && (this.index == -1 || this.index > 0);
     }
 
     get canRedo() {
-        return this.redoStack.length > 0;
+        return this.stack.length> 0 && this.index < this.stack.length - 1;
     }
 
     undo(){
-        let val = this.undoStack.pop();
-        if(val && this.undoStack.length % this.max != 0){
-            this.redoStack.push(val);
+        if(!this.redoundoStack){
+            this.redoundoStack = new RedoUndoStack(this.stack, this.current);
         }
-        
-        return val;
+        return this.redoundoStack.prev();
     }
 
     redo(){
-        let val = this.redoStack.pop();
-        if(val && this.redoStack.length != 0){
-            this.undoStack.push(val);
+        if(this.redoundoStack){
+            return this.redoundoStack.next();
         }
-        return val;
+        return null;
     }
 }
