@@ -198,7 +198,16 @@
             ]
           })
           if(ret){
-            that.contextMenuOpNote.title = ret.title;
+            if(that.contextMenuOpNote.github){
+              that.renameGHNote(that.contextMenuOpNote, ret.title).then(function(status){
+                that.contextMenuOpNote.title = ret.title;
+              }).catch(function(err){
+                if(ElectronUtil.confirm("Confirm", `Fail to rename on GitHub:,status: ${err.statusCode}, message: ${err.message}. Continue rename locally?`)){
+                  that.contextMenuOpNote.title = ret.title;
+                }
+              });
+            }
+            
           }
           that.contextMenuOpNote = null;
         }}))
@@ -218,7 +227,6 @@
                 }
               }
             }
-
           }
           that.contextMenuOpNote = null;
         }}));
@@ -322,10 +330,55 @@
       this.__removeDom();
     },
     methods: {
+      checkGHToken(){
+        return new Promise(function(resolve, reject){
+          let ghToken = dataProvider.loadGitHubToken();
+          if(!ghToken.user || !ghToken.token){
+            let inputDef = {
+              title:'Enter the GitHub user and access token', 
+              inputs:[{
+                msg: "GitHub user",
+                val:'',
+                required: true,
+                name: "user"
+              },
+              {
+                msg: "GitHub token",
+                val:'',
+                required: true,
+                name: "token"
+              }
+              ]
+            }
+            let ret = ElectronUtil.inputPrompt(inputDef);
+            if(ret && ret.token.trim() && ret.user.trim()){
+              ghToken = {"user": ret.user, "token": ret.token};
+              dataProvider.saveGitHubToken(ghToken);
+              resolve(ghToken);
+            } else{
+              reject("user canceled");
+            }
+          }
+        });
+      },
+      renameGHNote(note, newTitle){
+        let that = this;
+        return new Promise(function(resolve, reject){
+          let newNote = JSON.parse(JSON.stringify(note));
+          newNote.title = newTitle;
+          this.checkGHToken(function(ghToken){
+            let oldN = new Note(note);
+            let newN = new Note(newNote);
+            gh.renameFile(ghToken, '_posts', oldN.ghfilename, '_posts', newN.ghfilename).then(function(status){
+              resolve(status);
+            }).catch(function(err){
+              reject(err);
+            });
+          });
+        });
+      },
       addNote(){
-
         this.addNoteWithTitle('New note ' + (this.notes.length + 1))
-
       },
       updateMessage(message){
         this.messageTxt = message? message : "";
@@ -356,47 +409,22 @@
         this.isSanitize = !this.isSanitize;
       },
       saveGitHub() {
-        let ghToken = dataProvider.loadGitHubToken();
-        if(!ghToken.user || !ghToken.token){
-          let inputDef = {
-            title:'Enter the GitHub user and access token', 
-            inputs:[{
-              msg: "GitHub user",
-              val:'',
-              required: true,
-              name: "user"
-            },
-            {
-              msg: "GitHub token",
-              val:'',
-              required: true,
-              name: "token"
-            }
-            ]
-          }
-          let ret = ElectronUtil.inputPrompt(inputDef);
-          if(ret && ret.token.trim() && ret.user.trim()){
-            ghToken = {"user": ret.user, "token": ret.token};
-            dataProvider.saveGitHubToken(ghToken);
-          } else{
-            return;
-          }
-        }
-
         let that = this;
-        let selNote = this.selectedNote;
-        let note = new Note(selNote);
-        let ghfilename = note.ghfilename;
-        gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, function(status){
-          that.updateMessage(status);
-        }).then(function(status){
-          that.updateMessage(`File ${ghfilename} saved. New sha is ${status.commit.sha}`);
-          selNote.github = true;
-          __debounce(function(e){
-            that.updateMessage();
-          }, 10000);
-        }).catch(function(err){
-          ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message);
+        this.checkGHToken(function(ghToken){
+          let selNote = that.selectedNote;
+          let note = new Note(selNote);
+          let ghfilename = note.ghfilename;
+          gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, function(status){
+            that.updateMessage(status);
+          }).then(function(status){
+            that.updateMessage(`File ${ghfilename} saved. New sha is ${status.commit.sha}`);
+            selNote.github = true;
+            __debounce(function(e){
+              that.updateMessage();
+            }, 10000);
+          }).catch(function(err){
+            ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message);
+          });
         });
       },
       exportFile(){

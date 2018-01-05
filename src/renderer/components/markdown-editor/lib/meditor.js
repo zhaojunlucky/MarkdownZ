@@ -1,5 +1,3 @@
-import RedoUndo from './redoundo'
-
 const electron = require('electron');
 const clipboard = electron.clipboard;
 
@@ -7,7 +5,6 @@ export default class MEditor{
     constructor(editor){
         this.editor = editor;
 
-        this.undoRedo = new RedoUndo(15);
         this.eventListener = {"onReplace": null};
         console.log('ee')
     }
@@ -75,8 +72,7 @@ export default class MEditor{
         }
 
         this.editor.focus();
-        // undo redo setting
-        this.undoRedo.push(oldVal);
+
         if(this.eventListener.onReplace){
             this.eventListener.onReplace(oldVal, this.value)
         }
