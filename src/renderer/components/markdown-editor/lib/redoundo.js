@@ -17,7 +17,7 @@ export default class RedoUndo{
     }
 
     get canUndo() {
-        return this.undoStack.length > 0;
+        return this.undoStack.length > 0 && this.redoStack.length < this.max;
     }
 
     get canRedo() {

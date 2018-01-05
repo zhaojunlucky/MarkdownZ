@@ -1,6 +1,9 @@
+import RedoUndo from './redoundo'
+
 export default class Note{
     constructor(data){
         this.data = data;
+        this.undoredo = new RedoUndo(20);
     }
 
     get data(){
@@ -15,8 +18,17 @@ export default class Note{
         return this.data.title;
     }
 
+    set title(val){
+        this.data.title = val;
+    }
+
     get content(){
         return this.data.content;
+    }
+
+    set content(val){
+        undoredo.push(val);
+        this.data.content = val;
     }
 
     get created(){
@@ -25,6 +37,10 @@ export default class Note{
 
     get github(){
         return this.data.github;
+    }
+
+    set github(val){
+        this.data.github = val;
     }
 
     get ghcontent(){
