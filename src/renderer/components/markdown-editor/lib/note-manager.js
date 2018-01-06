@@ -1,3 +1,5 @@
+const dateFormat = require('dateformat');
+
 import DataProvider from './data-provider'
 import Note from './note'
 
@@ -22,7 +24,7 @@ export default class NoteManager{
 
     addNote(title){
         if(!title){
-            for(let i = this.length;;++i){
+            for(let i = this.notes.length + 1;;++i){
                 title = `New note ${i}`;
                 if(!this.notes.find(note => note.title === title)){
                     break;
@@ -39,7 +41,7 @@ export default class NoteManager{
           github: false,
         }
 
-        let note = new Note();
+        let note = new Note(data);
         this.notes.push(note);
         return note;
     }
