@@ -15,7 +15,7 @@ export default class RedoUndoStack{
     }
 
     next(){
-        if(this.current < this.stack.length){
+        if(this.current < this.stack.length - 1){
             this.current += 1
             return this.stack[this.current];
         }

@@ -510,7 +510,7 @@
         }
       },
       addImage() {
-        let sel = this.me.selction;
+        let sel = this.me.selection;
         let link;
         let ret = ElectronUtil.inputPrompt({
             title:'Image', 
