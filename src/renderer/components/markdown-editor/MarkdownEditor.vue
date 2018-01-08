@@ -45,32 +45,35 @@
       </div>
       <div class="vmd-body" ref="vmdBody">
         <template v-if="selectedNote">
-          <textarea class="vmd-editor" :style="vmdEditorStyle" ref="vmdEditor" v-model="selectedNote.content"
-                    title="Write with markdown"
-                    :disabled="selectedId == null || selectedNote.id == null"
-                    @focus="vmdActive"
-                    @blur="vmdInactive"
-                    @keydown.tab.prevent="me.addTab"
-                    @keydown.ctrl.b.prevent="addBold"
-                    @keydown.ctrl.i.prevent="addItalic"
-                    @keydown.ctrl.d.prevent="addStrikethrough"
-                    @keydown.ctrl.49.prevent="addHeading(markdown.h1)"
-                    @keydown.ctrl.50.prevent="addHeading(markdown.h2)"
-                    @keydown.ctrl.51.prevent="addHeading(markdown.h3)"
-                    @keydown.ctrl.r.prevent="addHR"
-                    @keydown.ctrl.q.prevent="addQuote"
-                    @keydown.ctrl.k.prevent="addCode"
-                    @keydown.ctrl.l.prevent="addLink"
-                    @keydown.ctrl.g.prevent="addImage"
-                    @keydown.ctrl.t.prevent="addTable"
-                    @keydown.ctrl.u.prevent="addUl"
-                    @keydown.ctrl.o.prevent="addOl"
-                    @keydown.enter.prevent="me.addEnter"
-                    @keydown.ctrl.a.prevent="me.selectAll"
-                    @keydown.ctrl.c.prevent="me.copySelection"
-                    @keydown.ctrl.z.prevent="selectedNote.undo"
-                    @keydown.ctrl.y.prevent="selectedNote.redo"
-          ></textarea>
+          <div class="vmd-editor CodeMirror">
+            <textarea :style="vmdEditorStyle" ref="vmdEditor" v-model="selectedNote.content"
+                      title="Write with markdown"
+                      :disabled="selectedId == null || selectedNote.id == null"
+                      @focus="vmdActive"
+                      @blur="vmdInactive"
+                      @keydown.tab.prevent="me.addTab"
+                      @keydown.ctrl.b.prevent="addBold"
+                      @keydown.ctrl.i.prevent="addItalic"
+                      @keydown.ctrl.d.prevent="addStrikethrough"
+                      @keydown.ctrl.49.prevent="addHeading(markdown.h1)"
+                      @keydown.ctrl.50.prevent="addHeading(markdown.h2)"
+                      @keydown.ctrl.51.prevent="addHeading(markdown.h3)"
+                      @keydown.ctrl.r.prevent="addHR"
+                      @keydown.ctrl.q.prevent="addQuote"
+                      @keydown.ctrl.k.prevent="addCode"
+                      @keydown.ctrl.l.prevent="addLink"
+                      @keydown.ctrl.g.prevent="addImage"
+                      @keydown.ctrl.t.prevent="addTable"
+                      @keydown.ctrl.u.prevent="addUl"
+                      @keydown.ctrl.o.prevent="addOl"
+                      @keydown.enter.prevent="me.addEnter"
+                      @keydown.ctrl.a.prevent="me.selectAll"
+                      @keydown.ctrl.c.prevent="me.copySelection"
+                      @keydown.ctrl.z.prevent="selectedNote.undo"
+                      @keydown.ctrl.y.prevent="selectedNote.redo"
+           ></textarea>
+            <CodeMirrorEditor class="CodeMirror"></CodeMirrorEditor>
+          </div>
           <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
         </template>
       </div>
@@ -99,7 +102,11 @@
   import GitHub from './lib/github'
   import Note from './lib/note'
   import NoteManager from './lib/note-manager'
+  import CodeMirrorEditor from './CodeMirrorEditor'
 
+  require('codemirror/mode/gfm/gfm.js');
+  require('codemirror/lib/codemirror.css');
+  const CodeMirror = require('codemirror');
   const electron = require('electron');
   const remote = electron.remote;
   const Menu = remote.Menu;
@@ -108,6 +115,7 @@
   console.log('start');
   const dataProvider = new DataProvider();
   const gh = new GitHub();
+
 
   // 配置marked环境
   marked.setOptions({
@@ -136,6 +144,7 @@
 
   export default {
     name: 'VueEditor',
+    components: {CodeMirrorEditor},
     props: {
       value: {
         type: String,
@@ -562,8 +571,13 @@
         this.vmdFooter = this.$refs.vmdFooter;
         this.vmdEditor = this.$refs.vmdEditor;
         this.vmdPreview = this.$refs.vmdPreview;
+        // this.cm = CodeMirror.fromTextArea(this.vmdEditor, {
+        //     mode: 'gfm',
+        //     lineNumbers: true,
+        //     lineWrapping: true
+        // });
         this.me = new MEditor(this.vmdEditor);
-        this.me.addEventListener('onReplace', this.onReplace);
+        //this.me.addEventListener('onReplace', this.onReplace);
       },
       __removeDom() {
         this.vmd = null;
@@ -604,7 +618,7 @@
   }
 </script>
 
-<style scoped>
+<style >
 
   *:focus {
     outline: none;
@@ -634,6 +648,8 @@
   button:hover {
     background: #63c89b;
   }
+
+  .CodeMirror { height: inherit !important; }
 
   .toolbar {
     padding: 4px;
@@ -777,6 +793,10 @@
     border: 0;
     resize: none;
     /*background: #00d1b2;*/
+  }
+
+  .cm-editor{
+    height: 10px;
   }
 
   .vmd-body .vmd-preview {
