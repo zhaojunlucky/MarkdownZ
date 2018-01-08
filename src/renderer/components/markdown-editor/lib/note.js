@@ -1,10 +1,8 @@
-import RedoUndo from './redoundo'
-
 export default class Note{
     constructor(data){
         console.log('Note');
         this._data = data;
-        this.undoredo = new RedoUndo(20);
+        this._history = null;
     }
 
     static get NoteTemplate(){
@@ -27,21 +25,6 @@ export default class Note{
 
     onReplace(oldVal, newVal){
         this.content = newVal;
-        this.undoredo.push(oldVal);
-    }
-
-    redo(){
-        let val = this.undoredo.redo();
-        if(val){
-            this.data.content = val;
-        }
-    }
-
-    undo(){
-        let val = this.undoredo.undo();
-        if(val){
-            this.data.content = val;
-        }
     }
 
     get data(){
@@ -65,7 +48,6 @@ export default class Note{
     }
 
     set content(val){
-        this.undoredo.push(this.data.content, val);
         this.data.content = val;
     }
 
@@ -79,6 +61,14 @@ export default class Note{
 
     set github(val){
         this.data.github = val;
+    }
+
+    set history(val){
+        this._history = val;
+    }
+
+    get history(){
+        return this._history;
     }
 
     get ghcontent(){

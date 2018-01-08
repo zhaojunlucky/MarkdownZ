@@ -4,9 +4,6 @@ const clipboard = electron.clipboard;
 export default class MEditor{
     constructor(editor){
         this.editor = editor;
-
-        this.eventListener = {"onReplace": null};
-        console.log('ee')
     }
 
     static get Markdown (){
@@ -28,49 +25,8 @@ export default class MEditor{
         };
     }
 
-    addEventListener(event, cb){
-        this.eventListener[event] = cb;
-    }
-
     get value(){
-        return this.editor.value;
-    }
-
-    get selection(){
-        return this.getSelection(this.editor.selectionStart, this.editor.selectionEnd);
-    }
-
-    getSelection(start, end){
-        let len = end - start;
-        return {
-            start : start,
-            end: end,
-            length: len,
-            text: this.value.substr(start, len)
-        }
-    }
-
-    setSelection(start, end){
-        this.editor.selectionStart = start;
-        this.editor.selectionEnd = end;
-    }
-
-    replace(sel, text, callback){
-        let oldVal = this.value;
-        // do replace
-        this.editor.value = this.editor.value.substr(0, sel.start) + text + this.editor.value.substring(sel.end);
-        if(callback){
-            let newSel = callback(sel);
-            if(newSel){
-                this.setSelection(newSel.start, newSel.end);
-            }
-        }
-
-        this.editor.focus();
-
-        if(this.eventListener.onReplace){
-            this.eventListener.onReplace(oldVal, this.value)
-        }
+        return this.editor.getValue();
     }
 
     selectAll(){
@@ -90,10 +46,7 @@ export default class MEditor{
     }
 
     addNormalText(text){
-        this.replace(this.selection, text, function(oldSel){
-            let start = oldSel.start + text.length;
-            return {"start": start, "end": start};
-        });
+        this.editor.replaceSelection(text);
     }
 
     addEnter(e){
@@ -144,27 +97,14 @@ export default class MEditor{
         }
     }
 
-    getCursorLine(start){
-        let i = this.value.lastIndexOf('\n', start);
-        if(i != start){
-            ++i;
+    surroundBy(start, end, val){
+        let endLine = this.editor.doc.getLine(end.line);
+        if(start.ch >= val.length && end.ch + val.length >= endLine.length){
+            let startLine = this.editor.doc.getLine(start.line);
+            
+            return startLine.slice(start.ch - val.length, start.ch) == val && endLine.substring(end.ch, end.ch + val.length) == val;
         }
-        let j = this.value.indexOf('\n', start);
-        if(j != start){
-            j = j > 0 ? j - 1 : this.value.length - 1;
-        }
-
-        return {
-            line: this.value.slice(i, j + 1),
-            start: i,
-            end: j
-        };
-    }
-
-    surroundBy(sel, val){
-        let len = val.length;
-        return this.value.substr(sel.start - len, len) === val &&
-            this.value.substr(sel.end, len) === val;
+        return false;
     }
 
     addBold(){
@@ -184,100 +124,88 @@ export default class MEditor{
     }
 
     addSurroundText(surroundText){
-        let len = surroundText.length;
-        let sel = this.selection;
-        let start = sel.start;
-        let end = sel.end;
-        let txt = sel.text;
-        let newSel = {
-            start: start,
-            end: end,
+        let sels = this.editor.doc.listSelections();
+        let selText = this.editor.doc.getSelection();
+        let start = sels[0].anchor;
+        let end = sels[0].head;
+        if(this.surroundBy(start, end, surroundText)){
+            start.ch -= surroundText.length;
+            end.ch += surroundText.length;
+            this.editor.doc.replaceRange(selText, start, end);
+        } else{
+            this.addNormalText(surroundText + selText + surroundText);
         }
-        if(this.surroundBy(sel, surroundText)){
-            newSel.start = start - len;
-            newSel.end = newSel.end - len;
-
-            start = start - len;
-            end = end + len;
-            
-        }else{
-            txt = surroundText + txt + surroundText;
-            newSel.start = start + len;
-            newSel.end = end + len;
-        }
-
-        this.replace(this.getSelection(start, end), txt, function(oldSel){
-            return newSel;
-        });
-
     }
 
     addHeading(heading){
-        let sel = this.selection;
-        let line = this.getCursorLine(sel.start);
-        let txt = heading;
-        let start = line.start;
-        let end = line.start;
-        let newSel = {
-            start : sel.end,
-            end : sel.end,
-        }
-
-        if(line.line.startsWith(heading)){
-            txt = '';
-            start = line.start;
-            end = start + heading.length;
-            newSel.start = newSel.end = sel.end - heading.length;
+        let sels = this.editor.doc.listSelections();
+        let selText = this.editor.doc.getSelection();
+        let start = sels[0].anchor;
+        let end = sels[0].head;
+        let startLine = this.editor.doc.getLine(start.line);
+        start.ch = 0;
+        if(startLine.startsWith(heading)){
+            this.editor.doc.replaceRange(start, end, selText.slice(heading.length));
         } else{
-            newSel.start = newSel.end = sel.end + heading.length;
+            this.editor.doc.replaceRange(start, end, heading + selText);
         }
-
-        this.replace(this.getSelection(start, end), txt, function(oldSel){
-            return newSel;
-        });
     }
 
-    addListPrefixText(prefixCallback){
-        let sel = this.selection;
-        let txt = '';
-        if(sel.text.indexOf(MEditor.Markdown.enter) < 0){
-            txt = prefixCallback(1) + sel.text;
-        }else{
-            let list = sel.text.split(MEditor.Markdown.enter);
-
-            for(let i = 0; i < list.length; ++i){
-                list[i] = prefixCallback(i + 1) + list[i]
+    addListPrefixText(prefixCallback, isItemCallback, rmItemCallback){
+        let sels = this.editor.doc.listSelections();
+        let start = sels[0].anchor;
+        let end = sels[0].head;
+        let lines = [];
+        let needRemove = false;
+        start.ch = 0;
+        end.ch = this.editor.doc.getLine(end.line).length - 1;
+        for(let i = start.line; i <= end.line; ++i){
+            let line = this.editor.doc.getLine(i);
+            if(!needRemove && isItemCallback(line)){
+                needRemove = true;
             }
-
-            txt = list.join(MEditor.Markdown.enter);
+            lines.append(line);
         }
-        this.replace(sel, txt, function(oldSel){
-            return {"start": sel.start, "end": sel.start + txt.length};
-        });
+
+        for(let i = 0; i < lines.length; ++i){
+            lines[i] = needRemove? rmItemCallback(lines[i]) : prefixCallback(i + 1) + lines[i];
+        }
+        this.editor.doc.replaceRange(start, end, lines.join(MEditor.Markdown.enter));
     }
 
     addOl() {
+        let orderedListPattern = /^(\d+)\. (.*)/
         this.addListPrefixText(function(index){
             return MEditor.Markdown.ol.replace('{num}', index);
+        }, function(line){
+            return orderedListPattern.test(line);
+        }, function(line){
+            return line.match(orderedListPattern)[2];
+        });
+    }
+
+    addSimplePrefix(prefix){
+        this.addListPrefixText(function(index){
+            return prefix;
+        }, function(line){
+            return line.startsWith(prefix);
+        }, function(line){
+            return line.slice(prefix.length);
         });
     }
 
     addUl(){
-        this.addListPrefixText(function(index){
-            return MEditor.Markdown.ul;
-        });
+        this.addSimplePrefix(MEditor.Markdown.ul);
     }
 
     addQuote(){
-        this.addListPrefixText(function(index){
-            return MEditor.Markdown.quote;
-        });
+        this.addSimplePrefix(MEditor.Markdown.quote);
     }
 
     addTable(){
-        if(this.selection.length === 0){
+        if(this.editor.doc.getSelection().length === 0){
             let l = this.getCursorLine(this.selection.start);
-            let newLine = this.getCursorLine(this.selection.start).line.length > 1 ? MEditor.Markdown.enter.repeat(2): MEditor.Markdown.enter;
+            let newLine = MEditor.Markdown.enter.repeat(2);
             this.addNormalText(newLine + MEditor.Markdown.table);
         }
     }

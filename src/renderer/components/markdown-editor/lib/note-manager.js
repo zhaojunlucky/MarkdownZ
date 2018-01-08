@@ -46,11 +46,11 @@ export default class NoteManager{
         return note;
     }
 
-    remoteNote(note){
-        return remoteNoteById(note.id);
+    removeNote(note){
+        return this.removeNoteById(note.id);
     }
 
-    remoteNoteById(id){
+    removeNoteById(id){
         const index = this.notes.findIndex(note => note.id === id);
         if(index >= 0) {
             const note = this.notes[index];

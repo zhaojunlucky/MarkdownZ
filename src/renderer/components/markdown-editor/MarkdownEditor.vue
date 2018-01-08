@@ -45,7 +45,7 @@
       </div>
       <div class="vmd-body" ref="vmdBody">
         <template v-if="selectedNote">
-          <div class="vmd-editor CodeMirror">
+          <div class="vmd-editor CodeMirror" style="overflow-y: hidden; padding: 0px;">
             <textarea :style="vmdEditorStyle" ref="vmdEditor" v-model="selectedNote.content"
                       title="Write with markdown"
                       :disabled="selectedId == null || selectedNote.id == null"
@@ -72,7 +72,7 @@
                       @keydown.ctrl.z.prevent="selectedNote.undo"
                       @keydown.ctrl.y.prevent="selectedNote.redo"
            ></textarea>
-            <CodeMirrorEditor class="CodeMirror"></CodeMirrorEditor>
+           <!-- <CodeMirrorEditor class="CodeMirror"></CodeMirrorEditor>-->
           </div>
           <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
         </template>
@@ -102,7 +102,6 @@
   import GitHub from './lib/github'
   import Note from './lib/note'
   import NoteManager from './lib/note-manager'
-  import CodeMirrorEditor from './CodeMirrorEditor'
 
   require('codemirror/mode/gfm/gfm.js');
   require('codemirror/lib/codemirror.css');
@@ -144,7 +143,6 @@
 
   export default {
     name: 'VueEditor',
-    components: {CodeMirrorEditor},
     props: {
       value: {
         type: String,
@@ -157,7 +155,6 @@
         vmdBody: null,
         vmdHeader: null,
         vmdFooter: null,
-        vmdEditor: null,
         vmdPreview: null,
         isPreview: true,
         isSanitize: true,
@@ -296,17 +293,17 @@
       this.__resize();
       // 添加滚动监听事件
       window.addEventListener('resize', this.vmdResize, false);
-      this.vmdEditor.addEventListener('scroll', this.vmdSyncScrolling, false);
+      // this.cm.addEventListener('scroll', this.vmdSyncScrolling, false);
       this.vmdPreview.addEventListener('scroll', this.vmdSyncScrolling, false);
       // 自动获取焦点
-      this.vmdEditor.focus();
+      this.cm.focus();
       ElectronUtil.hackLinks();
     },
     beforeDestroy() {
       // 移除滚动监听事件
       dataProvider.saveNotes(this.noteManager.rawNotes)
       window.removeEventListener('resize', this.vmdResize, false);
-      this.vmdEditor.removeEventListener('scroll', this.vmdSyncScrolling, false);
+      // this.vmdEditor.removeEventListener('scroll', this.vmdSyncScrolling, false);
       this.vmdPreview.removeEventListener('scroll', this.vmdSyncScrolling, false);
 
       // 移除DOM组件
@@ -429,12 +426,12 @@
        * 同步滚动
        */
       vmdSyncScrolling(e) {
-        e = e || window.event;
-        if (this.vmdEditor === e.target) {
-          this.vmdPreview.scrollTop = e.target.scrollTop
-        } else {
-          this.vmdEditor.scrollTop = e.target.scrollTop
-        }
+        // e = e || window.event;
+        // if (this.vmdEditor === e.target) {
+        //   this.vmdPreview.scrollTop = e.target.scrollTop
+        // } else {
+        //   this.vmdEditor.scrollTop = e.target.scrollTop
+        // }
       },
       vmdResize: __debounce(function (e) {
         this.__resize()
@@ -443,14 +440,27 @@
         this.isPreview = !this.isPreview
       },
       selectNote (note) {
-        // This will update the 'selectedNote' computed property
+        if(this.selectedNote){
+          this.selectedNote.history = this.cm.getHistory();
+        }
         this.selectedId = note.id
-        this.vmdEditor.focus()
+        this.cm.clearHistory();
+
+        this.cm.setValue(note.content);
+
+        if(note.history){
+            this.cm.setHistory(note.history);
+        }
+        this.cm.focus()
       },
       removeNote(note){
         if(note){
           if(note.id === this.selectedId){
-            this.selectedId = this.noteManager.notes.length? 0: null;
+            if(this.noteManager.notes.length > 0){
+              this.selectNote(this.noteManager.notes[0]);
+            } else{
+              this.selectedId = null;
+            }
           }
         }
       },
@@ -569,14 +579,18 @@
         this.vmdBody = this.$refs.vmdBody;
         this.vmdHeader = this.$refs.vmdHeader;
         this.vmdFooter = this.$refs.vmdFooter;
-        this.vmdEditor = this.$refs.vmdEditor;
         this.vmdPreview = this.$refs.vmdPreview;
-        // this.cm = CodeMirror.fromTextArea(this.vmdEditor, {
-        //     mode: 'gfm',
-        //     lineNumbers: true,
-        //     lineWrapping: true
-        // });
-        this.me = new MEditor(this.vmdEditor);
+        this.cm = CodeMirror.fromTextArea(this.$refs.vmdEditor, {
+            mode: 'gfm',
+            lineNumbers: true,
+            lineWrapping: true
+        });
+        this.me = new MEditor(this.cm);
+        this.cm.on('change', cm => {
+          if(this.selectedNote){
+            this.selectedNote.content = cm.getValue();
+          }
+        });
         //this.me.addEventListener('onReplace', this.onReplace);
       },
       __removeDom() {
@@ -584,7 +598,6 @@
         this.vmdBody = null;
         this.vmdHeader = null;
         this.vmdFooter = null;
-        this.vmdEditor = null;
         this.vmdPreview = null
       },
       __resize() {
@@ -606,6 +619,10 @@
       },
       // Let's save the selection too
       selectedId (val, oldVal) {
+        this.cm.setOption("readOnly", !val);
+        if(!val){
+          this.cm.setValue(Note.About);
+        }
         dataProvider.saveSelectedNoteId(val);
       },
       selectedNote: {
@@ -618,7 +635,7 @@
   }
 </script>
 
-<style >
+<style>
 
   *:focus {
     outline: none;
@@ -793,10 +810,6 @@
     border: 0;
     resize: none;
     /*background: #00d1b2;*/
-  }
-
-  .cm-editor{
-    height: 10px;
   }
 
   .vmd-body .vmd-preview {
