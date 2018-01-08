@@ -276,7 +276,8 @@ export default class MEditor{
 
     addTable(){
         if(this.selection.length === 0){
-            let newLine = this.getCursorLine(this.selection.start).line.length > 1 ? MEditor.Markdown.enter: '';
+            let l = this.getCursorLine(this.selection.start);
+            let newLine = this.getCursorLine(this.selection.start).line.length > 1 ? MEditor.Markdown.enter.repeat(2): MEditor.Markdown.enter;
             this.addNormalText(newLine + MEditor.Markdown.table);
         }
     }
