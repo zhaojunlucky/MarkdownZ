@@ -623,6 +623,7 @@
         this.me = new MEditor(this.cm);
         let that = this;
         let extraKeys = {
+            Tab: (cm) => that.me.addTab(),
             Enter: (cm) => that.me.addEnter(),
             "Ctrl-I": (cm) => that.me.addItalic(),
             "Ctrl-B": (cm) => that.me.addBold(),

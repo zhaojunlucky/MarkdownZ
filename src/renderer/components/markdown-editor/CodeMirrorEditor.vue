@@ -5,7 +5,8 @@
 </template>
 
 <script>
-    require('codemirror/mode/gfm/gfm.js');
+    require('codemirror/mode/gfm/gfm');
+    require('codemirror/addon/selection/active-line')
     require('codemirror/lib/codemirror.css');
     const CodeMirror = require('codemirror');
     console.log("CodeMirror");
@@ -31,6 +32,9 @@
                   mode: 'gfm',
                   lineNumbers: true,
                   lineWrapping: true,
+                  styleActiveLine: true,
+                  indentUnit: 4,
+                  indentWithTabs: true,
                 },
             }
         },
@@ -108,3 +112,11 @@
 
     }
 </script>
+
+<style>
+  .cm-tab {
+         background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAMCAYAAAAkuj5RAAAAAXNSR0IArs4c6QAAAGFJREFUSMft1LsRQFAQheHPowAKoACx3IgEKtaEHujDjORSgWTH/ZOdnZOcM/sgk/kFFWY0qV8foQwS4MKBCS3qR6ixBJvElOobYAtivseIE120FaowJPN75GMu8j/LfMwNjh4HUpwg4LUAAAAASUVORK5CYII=);
+         background-position: right;
+         background-repeat: no-repeat;
+      }
+</style>
