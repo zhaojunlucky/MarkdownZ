@@ -4,6 +4,7 @@ const clipboard = electron.clipboard;
 export default class MEditor{
     constructor(editor){
         this.editor = editor;
+        console.log("MEditor");
     }
 
     static get Markdown (){
@@ -42,14 +43,15 @@ export default class MEditor{
     }
 
     addNormalText(text){
-        this.editor.doc.replaceSection(text);
+        this.editor.doc.replaceSelection(text);
+        this.editor.focus();
     }
 
     getSelection(){
         let sels = this.editor.doc.listSelections();
         return {
-            start: sels[0].anchor,
-            end: sels[0].head,
+            start: {line: sels[0].anchor.line, ch: sels[0].anchor.ch},
+            end: {line: sels[0].head.line, ch: sels[0].head.ch},
             text: this.editor.doc.getSelection(),
         };
     }
@@ -57,9 +59,10 @@ export default class MEditor{
     replace(text, start, end, sel){
         this.editor.doc.replaceRange(text, start, end);
         if(sel){
-            this.editor.doc.setSelection(sel.start, sel.end);
             this.editor.doc.setCursor(sel.start);
+            this.editor.doc.setSelection(sel.start, sel.end);
         }
+        this.editor.focus();
     }
 
     addEnter(){
@@ -75,8 +78,9 @@ export default class MEditor{
          */
         let delPattern = /^(\d+)\. $|^- $|^> $/
         if(line.length == start.ch && delPattern.test(line)){
-            txt = MEditor.Markdown.enter.repeat(2);
+            txt = MEditor.Markdown.enter;
             start.ch = 0;
+            end.ch = line.length;
         }else{
             txt = MEditor.Markdown.enter;
             let orderedListPattern = /^(\d+)\. .*/;
@@ -123,13 +127,13 @@ export default class MEditor{
 
     calcSelection(text, rStart, rEnd, startTuning, endTuning){
         let newSel = {
-            start: {line: rStart.line, ch, rStart.ch},
-            end: {line: rEnd.line, ch, rEnd.ch},
+            start: {line: rStart.line, ch: rStart.ch},
+            end: {line: rEnd.line, ch: rEnd.ch},
         }
 
         let lines = text.split(MEditor.Markdown.enter);
         newSel.end.line = rStart.line + lines.length - 1;
-        newSel.start.ch = Math.max(newSel.ch + startTuning, 0);
+        newSel.start.ch = Math.max(newSel.start.ch + startTuning, 0);
         newSel.end.ch = lines.length > 1 ? lines[lines.length - 1].length : newSel.start.ch + text.length;
 
         newSel.end.ch = Math.max(newSel.end.ch + endTuning, 0);
@@ -158,18 +162,18 @@ export default class MEditor{
 
     addHeading(heading){
         let sel = this.getSelection();
-        let selText = sel.text;
+        
         let start = sel.start;
         let end = sel.end;
         let startLine = this.editor.doc.getLine(start.line);
         start.ch = 0;
         if(startLine.startsWith(heading)){
-            let text = selText.slice(heading.length);
+            let text = startLine.slice(heading.length);
             let newSel = this.calcSelection(text, start, end, 0, 0);
             this.replace(text, start, end, newSel);
         } else{
-            let text = heading + selText;
-            let newSel = this.calcSelection(text, start, end, 0, 0);
+            let text = heading + startLine;
+            let newSel = this.calcSelection(text, start, end, heading.length, 0);
             this.replace(text, start, end, newSel);
         }
     }
@@ -181,13 +185,13 @@ export default class MEditor{
         let lines = [];
         let needRemove = false;
         start.ch = 0;
-        end.ch = this.editor.doc.getLine(end.line).length - 1;
+        end.ch = this.editor.doc.getLine(end.line).length;
         for(let i = start.line; i <= end.line; ++i){
             let line = this.editor.doc.getLine(i);
             if(!needRemove && isItemCallback(line)){
                 needRemove = true;
             }
-            lines.append(line);
+            lines.push(line);
         }
 
         for(let i = 0; i < lines.length; ++i){
