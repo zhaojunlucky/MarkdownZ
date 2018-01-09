@@ -343,13 +343,14 @@
     },
     methods: {
       onCMContextmenu(e){
+        const findMenu = (menu, id) => menu.items.find(item => item.id && item.id == id);
         const hasSel = (e.doc.getSelection().length > 0);
-        this.cmContextMenu.getMenuItemById('redo').enabled = e.doc.historySize().redo > 0;
-        this.cmContextMenu.getMenuItemById('undo').enabled = e.doc.historySize().undo > 0;
-        this.cmContextmenu.getMenuItemById('copy').enabled = hasSel;
-        this.cmContextmenu.getMenuItemById('paste').enabled = hasSel;
-        this.cmContextmenu.getMenuItemById('cut').enabled = hasSel;
-        this.cmContextmenu.getMenuItemById('delete').enabled = hasSel;
+        findMenu(this.cmContextMenu, 'redo').enabled = e.doc.historySize().redo > 0;
+        findMenu(this.cmContextMenu, 'undo').enabled = e.doc.historySize().undo > 0;
+        findMenu(this.cmContextMenu, 'copy').enabled = hasSel;
+        findMenu(this.cmContextMenu, 'paste').enabled = this.me.canPaste();
+        findMenu(this.cmContextMenu, 'cut').enabled = hasSel;
+        findMenu(this.cmContextMenu, 'delete').enabled = hasSel;
         this.cmContextMenu.popup(remote.getCurrentWindow());
       },
       checkGHToken(){

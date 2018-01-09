@@ -5,6 +5,7 @@ export default class MEditor{
     constructor(editor){
         this.editor = editor;
         console.log("MEditor");
+        this.pasteSelection = null;
     }
 
     static get Markdown (){
@@ -30,8 +31,30 @@ export default class MEditor{
         return this.editor.getValue();
     }
 
+    cutSelection(){
+        clipboard.writeText(this.getSelection().text);
+        this.deleteSelection();
+    }
+
     copySelection(){
-        clipboard.writeText(this.selection.text);
+        clipboard.writeText(this.getSelection().text);
+    }
+
+    paste(){
+        if(this.pasteSelection){
+            let text = clipboard.readText();
+            this.replace(text, this.pasteSelection.start, this.pasteSelection.end, this.calcSelection(text, this.pasteSelection.start, this.pasteSelection.end, 0, 0));
+            this.pasteSelection = null;
+        }
+    }
+
+    canPaste(){
+        this.pasteSelection = this.getSelection();
+        return clipboard.readText().length > 0;
+    }
+
+    deleteSelection(){
+        this.editor.doc.replaceSelection("");
     }
 
     addTab(){
