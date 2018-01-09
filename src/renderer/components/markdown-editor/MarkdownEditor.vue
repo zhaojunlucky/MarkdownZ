@@ -45,7 +45,7 @@
       </div>
       <div class="vmd-body" ref="vmdBody">
         <template v-if="selectedNote">
-          <CodeMirrorEditor v-model="selectedNote.content" class="vmd-editor CodeMirror" style="overflow-y: hidden; padding: 0px;" ref="vmdEditor"></CodeMirrorEditor>
+          <CodeMirrorEditor v-model="selectedNote.content" :options="cmOption" class="vmd-editor CodeMirror" style="overflow-y: hidden; padding: 0px;" ref="vmdEditor"></CodeMirrorEditor>
           <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
         </template>
       </div>
@@ -137,6 +137,9 @@
         me: null,
         markdown: MEditor.Markdown,
         noteManager: new NoteManager(dataProvider),
+        cmOption: {
+          tabSize: 4,
+        },
       }
     },
     created(){
@@ -557,6 +560,13 @@
         this.vmdPreview = this.$refs.vmdPreview;
         this.cm = this.$refs.vmdEditor.cm;
         this.me = new MEditor(this.cm);
+        let that = this;
+        let extraKeys = {
+            Enter: function(cm){
+              that.me.addEnter();
+            },
+        };
+        this.cm.setOption("extraKeys", extraKeys);
       },
       __removeDom() {
         this.vmd = null;
