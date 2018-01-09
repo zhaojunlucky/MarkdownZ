@@ -45,7 +45,7 @@
       </div>
       <div class="vmd-body" ref="vmdBody">
         <template v-if="selectedNote">
-          <CodeMirrorEditor v-model="selectedNote.content" :options="cmOption" class="vmd-editor CodeMirror" style="overflow-y: hidden; padding: 0px;" ref="vmdEditor"></CodeMirrorEditor>
+          <CodeMirrorEditor v-model="selectedNote.content" :options="cmOption" :readonly="selectedId == null || selectedNote.id == null" @scroll="vmdSyncScrolling(cm)" @focus="vmdActive" @blur="vmdInactive" @contextmenu="onCMContextmenu" class="vmd-editor CodeMirror" style="overflow-y: hidden; padding: 0px;" ref="vmdEditor"></CodeMirrorEditor>
           <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
         </template>
       </div>
@@ -131,6 +131,7 @@
         isSanitize: true,
         selectedId: dataProvider.loadSelectedNoteId(),
         noteContextMenu: null,
+        cmContextmenu: null,
         contextMenuOpNote: null,
         addedLink: false,
         messageTxt: "",
@@ -144,7 +145,7 @@
     },
     created(){
       let that = this;
-      this.noteContextMenu = new Menu()
+      this.noteContextMenu = new Menu();
       this.noteContextMenu.append(new MenuItem({
         label: "New note with title", click: function(){
           let inputDef = {
@@ -197,6 +198,63 @@
           }
           that.contextMenuOpNote = null;
         }}));
+
+      this.cmContextMenu = new Menu();
+      this.cmContextMenu.append(new MenuItem({
+        label: 'Undo',
+        accelerator: "Ctrl+Z",
+        id: 'undo',
+        click: () => this.cm.undo(),
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        label: "Redo",
+        accelerator: "Ctrl+Y",
+        id: "redo",
+        click: () => this.cm.redo(),
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        type: 'separator'
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        label: 'Cut',
+        accelerator: "Ctrl+X",
+        id: "cut",
+        click: () => this.me.cutSelection(),
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        label: "Copy",
+        accelerator: "Ctrl+C",
+        id: "copy",
+        click: () => this.me.copySelection(),
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        label: "Paste",
+        accelerator: "Ctrl+V",
+        id: "paste",
+        click: () => this.me.paste(),
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        label: "Delete",
+        accelerator: "Delete",
+        id: "delete",
+        click: () => this.me.deleteSelection(),
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        type: 'separator'
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        label: "Select All",
+        accelerator: "Ctrl+A",
+        click: () => this.cm.execCommand('selectAll'),
+      }));
     },
     updated: function () {
       this.$nextTick(function () {
@@ -268,7 +326,7 @@
       // 添加滚动监听事件
       window.addEventListener('resize', this.vmdResize, false);
       // this.cm.addEventListener('scroll', this.vmdSyncScrolling, false);
-      this.vmdPreview.addEventListener('scroll', this.vmdSyncScrolling, false);
+      // this.vmdPreview.addEventListener('scroll', this.vmdSyncScrolling, false);
       // 自动获取焦点
       this.cm.focus();
       ElectronUtil.hackLinks();
@@ -278,14 +336,21 @@
       dataProvider.saveNotes(this.noteManager.rawNotes)
       window.removeEventListener('resize', this.vmdResize, false);
       // this.vmdEditor.removeEventListener('scroll', this.vmdSyncScrolling, false);
-      this.vmdPreview.removeEventListener('scroll', this.vmdSyncScrolling, false);
+      // this.vmdPreview.removeEventListener('scroll', this.vmdSyncScrolling, false);
 
       // 移除DOM组件
       this.__removeDom();
     },
     methods: {
-      onReplace(oldVal, newVal){
-        this.selectedNote.onReplace(oldVal, newVal);
+      onCMContextmenu(e){
+        const hasSel = (e.doc.getSelection().length > 0);
+        this.cmContextMenu.getMenuItemById('redo').enabled = e.doc.historySize().redo > 0;
+        this.cmContextMenu.getMenuItemById('undo').enabled = e.doc.historySize().undo > 0;
+        this.cmContextmenu.getMenuItemById('copy').enabled = hasSel;
+        this.cmContextmenu.getMenuItemById('paste').enabled = hasSel;
+        this.cmContextmenu.getMenuItemById('cut').enabled = hasSel;
+        this.cmContextmenu.getMenuItemById('delete').enabled = hasSel;
+        this.cmContextMenu.popup(remote.getCurrentWindow());
       },
       checkGHToken(){
         return new Promise(function(resolve, reject){
@@ -400,12 +465,7 @@
        * 同步滚动
        */
       vmdSyncScrolling(e) {
-        // e = e || window.event;
-        // if (this.vmdEditor === e.target) {
-        //   this.vmdPreview.scrollTop = e.target.scrollTop
-        // } else {
-        //   this.vmdEditor.scrollTop = e.target.scrollTop
-        // }
+        this.vmdPreview.scrollTop = this.vmdPreview.scrollHeight* e.getScrollInfo().top/e.getScrollInfo().height;
       },
       vmdResize: __debounce(function (e) {
         this.__resize()
@@ -562,9 +622,21 @@
         this.me = new MEditor(this.cm);
         let that = this;
         let extraKeys = {
-            Enter: function(cm){
-              that.me.addEnter();
-            },
+            Enter: (cm) => that.me.addEnter(),
+            "Ctrl-I": (cm) => that.me.addItalic(),
+            "Ctrl-B": (cm) => that.me.addBold(),
+            "Ctrl-1": (cm) => that.me.addHeading(MEditor.Markdown.h1),
+            "Ctrl-2": (cm) => that.me.addHeading(MEditor.Markdown.h2),
+            "Ctrl-3": (cm) => that.me.addHeading(MEditor.Markdown.h3),
+            "Ctrl-D": (cm) => that.me.addStrikethrough(),
+            "Ctrl-R": (cm) => that.me.addHorizonRule(),
+            "Ctrl-U": (cm) => that.me.addUl(),
+            "Ctrl-O": (cm) => that.me.addOl(),
+            "Ctrl-T": (cm) => that.me.addTable(),
+            "Ctrl-L": (cm) => that.me.addLink(),
+            "Ctrl-G": (cm) => that.me.addImage(),
+            "Ctrl-K": (cm) => that.me.addCode(),
+            "Ctrl-Q": (cm) => that.me.addQuote(),
         };
         this.cm.setOption("extraKeys", extraKeys);
       },

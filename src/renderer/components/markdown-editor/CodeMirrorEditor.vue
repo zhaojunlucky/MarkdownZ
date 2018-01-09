@@ -83,6 +83,23 @@
                   this.content = cm.getValue();
                   this.$emit('input', this.content);
                 });
+                const events = [
+                    'scroll',
+                    'focus',
+                    'blur',
+                    'contextmenu',
+                ];
+                const onEdEvents = {}
+                for (let i = 0; i < events.length; i++) {
+                  if (typeof events[i] === 'string' && onEdEvents[events[i]] === undefined) {
+                    (event => {
+                      onEdEvents[event] = null
+                      this.cm.on(event, (a, b, c) => {
+                        this.$emit(event, a, b, c)
+                      })
+                    })(events[i]);
+                  }
+                }
             },
         },
         refresh() {
