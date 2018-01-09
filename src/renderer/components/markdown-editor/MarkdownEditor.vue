@@ -45,35 +45,7 @@
       </div>
       <div class="vmd-body" ref="vmdBody">
         <template v-if="selectedNote">
-          <div class="vmd-editor CodeMirror" style="overflow-y: hidden; padding: 0px;">
-            <textarea :style="vmdEditorStyle" ref="vmdEditor" v-model="selectedNote.content"
-                      title="Write with markdown"
-                      :disabled="selectedId == null || selectedNote.id == null"
-                      @focus="vmdActive"
-                      @blur="vmdInactive"
-                      @keydown.tab.prevent="me.addTab"
-                      @keydown.ctrl.b.prevent="addBold"
-                      @keydown.ctrl.i.prevent="addItalic"
-                      @keydown.ctrl.d.prevent="addStrikethrough"
-                      @keydown.ctrl.49.prevent="addHeading(markdown.h1)"
-                      @keydown.ctrl.50.prevent="addHeading(markdown.h2)"
-                      @keydown.ctrl.51.prevent="addHeading(markdown.h3)"
-                      @keydown.ctrl.r.prevent="addHR"
-                      @keydown.ctrl.q.prevent="addQuote"
-                      @keydown.ctrl.k.prevent="addCode"
-                      @keydown.ctrl.l.prevent="addLink"
-                      @keydown.ctrl.g.prevent="addImage"
-                      @keydown.ctrl.t.prevent="addTable"
-                      @keydown.ctrl.u.prevent="addUl"
-                      @keydown.ctrl.o.prevent="addOl"
-                      @keydown.enter.prevent="me.addEnter"
-                      @keydown.ctrl.a.prevent="me.selectAll"
-                      @keydown.ctrl.c.prevent="me.copySelection"
-                      @keydown.ctrl.z.prevent="selectedNote.undo"
-                      @keydown.ctrl.y.prevent="selectedNote.redo"
-           ></textarea>
-           <!-- <CodeMirrorEditor class="CodeMirror"></CodeMirrorEditor>-->
-          </div>
+          <CodeMirrorEditor v-model="selectedNote.content" class="vmd-editor CodeMirror" style="overflow-y: hidden; padding: 0px;" ref="vmdEditor"></CodeMirrorEditor>
           <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
         </template>
       </div>
@@ -102,10 +74,8 @@
   import GitHub from './lib/github'
   import Note from './lib/note'
   import NoteManager from './lib/note-manager'
+  import CodeMirrorEditor from './CodeMirrorEditor'
 
-  require('codemirror/mode/gfm/gfm.js');
-  require('codemirror/lib/codemirror.css');
-  const CodeMirror = require('codemirror');
   const electron = require('electron');
   const remote = electron.remote;
   const Menu = remote.Menu;
@@ -142,7 +112,8 @@
   }
 
   export default {
-    name: 'VueEditor',
+    name: 'MarkdownEditor',
+    components:{CodeMirrorEditor},
     props: {
       value: {
         type: String,
@@ -490,7 +461,7 @@
         this.me.addCode();
       },
       addLink() {
-        let sel = this.me.selection;
+        let sel = this.me.getSelection();
         let link;
 
         let ret = ElectronUtil.inputPrompt({
@@ -526,10 +497,12 @@
           this.me.addNormalText(replaceContent);
 
           this.addedLink = true;
+        }else{
+          this.cm.focus();
         }
       },
       addImage() {
-        let sel = this.me.selection;
+        let sel = this.me.getSelection();
         let link;
         let ret = ElectronUtil.inputPrompt({
             title:'Image', 
@@ -560,6 +533,8 @@
           // 替换选择内容并将光标设置到chunk内容前
           let replaceText = '![' + alternate + '](' + sanitizedLink + ' "' + alternate + '")';
           this.me.addNormalText(replaceText);
+        }else{
+          this.cm.focus();
         }
       },
       addTable() {
@@ -580,24 +555,8 @@
         this.vmdHeader = this.$refs.vmdHeader;
         this.vmdFooter = this.$refs.vmdFooter;
         this.vmdPreview = this.$refs.vmdPreview;
-        let that = this;
-        this.cm = CodeMirror.fromTextArea(this.$refs.vmdEditor, {
-            mode: 'gfm',
-            lineNumbers: true,
-            lineWrapping: true,
-            extraKeys: {
-              "Enter": function(cm){
-                that.me.addEnter();
-              }
-            }
-        });
+        this.cm = this.$refs.vmdEditor.cm;
         this.me = new MEditor(this.cm);
-        this.cm.on('change', cm => {
-          if(this.selectedNote){
-            this.selectedNote.content = cm.getValue();
-          }
-        });
-        //this.me.addEventListener('onReplace', this.onReplace);
       },
       __removeDom() {
         this.vmd = null;
@@ -625,17 +584,7 @@
       },
       // Let's save the selection too
       selectedId (val, oldVal) {
-        this.cm.setOption("readOnly", !val);
-        if(!val){
-          this.cm.setValue(Note.About);
-        }
         dataProvider.saveSelectedNoteId(val);
-      },
-      selectedNote: {
-        deep: true,
-        handler: function(val){
-          
-        }
       },
     },
   }

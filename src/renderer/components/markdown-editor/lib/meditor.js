@@ -155,7 +155,7 @@ export default class MEditor{
 
         } else{
             let text = surroundText + selText + surroundText;
-            let newSel = this.calcSelection(text, start, end, surroundText.length, surroundText.length*-1);
+            let newSel = this.calcSelection(text, start, end, surroundText.length, -surroundText.length*2);
             this.replace(text, start, end, newSel);
         }
     }
