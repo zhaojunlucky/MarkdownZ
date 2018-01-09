@@ -580,10 +580,16 @@
         this.vmdHeader = this.$refs.vmdHeader;
         this.vmdFooter = this.$refs.vmdFooter;
         this.vmdPreview = this.$refs.vmdPreview;
+        let that = this;
         this.cm = CodeMirror.fromTextArea(this.$refs.vmdEditor, {
             mode: 'gfm',
             lineNumbers: true,
-            lineWrapping: true
+            lineWrapping: true,
+            extraKeys: {
+              "Enter": function(cm){
+                that.me.addEnter();
+              }
+            }
         });
         this.me = new MEditor(this.cm);
         this.cm.on('change', cm => {

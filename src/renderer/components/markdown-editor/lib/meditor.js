@@ -29,10 +29,6 @@ export default class MEditor{
         return this.editor.getValue();
     }
 
-    selectAll(){
-        this.setSelection(0, this.value.length);
-    }
-
     copySelection(){
         clipboard.writeText(this.selection.text);
     }
@@ -46,55 +42,57 @@ export default class MEditor{
     }
 
     addNormalText(text){
-        this.editor.replaceSelection(text);
+        this.editor.doc.replaceSection(text);
     }
 
-    addEnter(e){
+    getSelection(){
+        let sels = this.editor.doc.listSelections();
+        return {
+            start: sels[0].anchor,
+            end: sels[0].head,
+            text: this.editor.doc.getSelection(),
+        };
+    }
+
+    replace(text, start, end, sel){
+        this.editor.doc.replaceRange(text, start, end);
+        if(sel){
+            this.editor.doc.setSelection(sel.start, sel.end);
+            this.editor.doc.setCursor(sel.start);
+        }
+    }
+
+    addEnter(){
         let txt = '';
-        let sel = this.selection;
+        let sel = this.getSelection();
         let start = sel.start;
         let end = sel.end;
-        let newSel = {
-            start: start,
-            end: end
-        }
-        if(e.shiftKey){
-            txt = MEditor.Markdown.enter;
-        } else if(!e.isComposing){
-            let line = this.getCursorLine(start);
-            /*
-             * - test
-             * - (if press enter here need delete -)
-             */
-            let delPattern = /^(\d+)\. $|^- $|^> $/
-            if(sel.start == line.line.length + line.start && delPattern.test(line.line)){
-                txt = MEditor.Markdown.enter.repeat(2);
-                start = line.start;
-            }else{
-                txt = MEditor.Markdown.enter;
-                let orderedListPattern = /^(\d+)\. .*/;
-                if(line.line.startsWith(MEditor.Markdown.ul)){
-                    txt += MEditor.Markdown.ul;
-                }else if(line.line.startsWith(MEditor.Markdown.quote)){
-                    txt += MEditor.Markdown.quote;
-                }else if(orderedListPattern.test(line.line)){
-                    let numStr = line.line.match(orderedListPattern);
-                    if(start >= line.start + numStr.length + 1){
-                        let num = parseInt(numStr);
-                        txt += MEditor.Markdown.ol.replace("{num}", (num + 1));
-                    }
-                    
-                }
 
+        let line = this.editor.doc.getLine(start.line);
+        /*
+         * - test
+         * - (if press enter here need delete -)
+         */
+        let delPattern = /^(\d+)\. $|^- $|^> $/
+        if(line.length == start.ch && delPattern.test(line)){
+            txt = MEditor.Markdown.enter.repeat(2);
+            start.ch = 0;
+        }else{
+            txt = MEditor.Markdown.enter;
+            let orderedListPattern = /^(\d+)\. .*/;
+            if(line.startsWith(MEditor.Markdown.ul)){
+                txt += MEditor.Markdown.ul;
+            }else if(line.startsWith(MEditor.Markdown.quote)){
+                txt += MEditor.Markdown.quote;
+            }else if(orderedListPattern.test(line)){
+                let numStr = line.match(orderedListPattern);
+                if(start.ch >= numStr.length + 1){
+                    let num = parseInt(numStr);
+                    txt += MEditor.Markdown.ol.replace("{num}", (num + 1));
+                }
             }
-            newSel.start = start + txt.length;
-            newSel.end = newSel.start;
         }
-        if(txt){
-            this.replace(this.getSelection(start, end), txt, function(oldSel){
-                return newSel;
-            });
-        }
+        this.replace(txt, start, end);
     }
 
     surroundBy(start, end, val){
@@ -123,38 +121,63 @@ export default class MEditor{
         this.addSurroundText(MEditor.Markdown.code);
     }
 
+    calcSelection(text, rStart, rEnd, startTuning, endTuning){
+        let newSel = {
+            start: {line: rStart.line, ch, rStart.ch},
+            end: {line: rEnd.line, ch, rEnd.ch},
+        }
+
+        let lines = text.split(MEditor.Markdown.enter);
+        newSel.end.line = rStart.line + lines.length - 1;
+        newSel.start.ch = Math.max(newSel.ch + startTuning, 0);
+        newSel.end.ch = lines.length > 1 ? lines[lines.length - 1].length : newSel.start.ch + text.length;
+
+        newSel.end.ch = Math.max(newSel.end.ch + endTuning, 0);
+
+        return newSel;
+    }
+
     addSurroundText(surroundText){
-        let sels = this.editor.doc.listSelections();
-        let selText = this.editor.doc.getSelection();
-        let start = sels[0].anchor;
-        let end = sels[0].head;
+        let sel = this.getSelection();
+        let selText = sel.text;
+        let start = sel.start;
+        let end = sel.end;
+
         if(this.surroundBy(start, end, surroundText)){
             start.ch -= surroundText.length;
             end.ch += surroundText.length;
-            this.editor.doc.replaceRange(selText, start, end);
+            let newSel = this.calcSelection(selText, start, end, 0, 0);
+            this.replace(selText, start, end, newSel);
+
         } else{
-            this.addNormalText(surroundText + selText + surroundText);
+            let text = surroundText + selText + surroundText;
+            let newSel = this.calcSelection(text, start, end, surroundText.length, surroundText.length*-1);
+            this.replace(text, start, end, newSel);
         }
     }
 
     addHeading(heading){
-        let sels = this.editor.doc.listSelections();
-        let selText = this.editor.doc.getSelection();
-        let start = sels[0].anchor;
-        let end = sels[0].head;
+        let sel = this.getSelection();
+        let selText = sel.text;
+        let start = sel.start;
+        let end = sel.end;
         let startLine = this.editor.doc.getLine(start.line);
         start.ch = 0;
         if(startLine.startsWith(heading)){
-            this.editor.doc.replaceRange(start, end, selText.slice(heading.length));
+            let text = selText.slice(heading.length);
+            let newSel = this.calcSelection(text, start, end, 0, 0);
+            this.replace(text, start, end, newSel);
         } else{
-            this.editor.doc.replaceRange(start, end, heading + selText);
+            let text = heading + selText;
+            let newSel = this.calcSelection(text, start, end, 0, 0);
+            this.replace(text, start, end, newSel);
         }
     }
 
     addListPrefixText(prefixCallback, isItemCallback, rmItemCallback){
-        let sels = this.editor.doc.listSelections();
-        let start = sels[0].anchor;
-        let end = sels[0].head;
+        let sel = this.getSelection();
+        let start = sel.start;
+        let end = sel.end;
         let lines = [];
         let needRemove = false;
         start.ch = 0;
@@ -170,7 +193,9 @@ export default class MEditor{
         for(let i = 0; i < lines.length; ++i){
             lines[i] = needRemove? rmItemCallback(lines[i]) : prefixCallback(i + 1) + lines[i];
         }
-        this.editor.doc.replaceRange(start, end, lines.join(MEditor.Markdown.enter));
+        let text = lines.join(MEditor.Markdown.enter);
+        let newSel = this.calcSelection(text, start, end, 0, 0);
+        this.replace(text, start, end, newSel);
     }
 
     addOl() {
@@ -204,7 +229,6 @@ export default class MEditor{
 
     addTable(){
         if(this.editor.doc.getSelection().length === 0){
-            let l = this.getCursorLine(this.selection.start);
             let newLine = MEditor.Markdown.enter.repeat(2);
             this.addNormalText(newLine + MEditor.Markdown.table);
         }
