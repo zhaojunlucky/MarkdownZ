@@ -26,6 +26,8 @@
     import 'codemirror/addon/fold/indent-fold'
     import 'codemirror/addon/fold/markdown-fold'
     import 'codemirror/addon/fold/comment-fold'
+    import 'codemirror/addon/edit/closebrackets'
+    import 'codemirror/addon/edit/closetag'
 
     const CodeMirror = window.CodeMirror || _CodeMirror;
     console.log("CodeMirror");
@@ -53,8 +55,10 @@
                   lineWrapping: true,
                   styleActiveLine: true,
                   indentUnit: 4,
-                  indentWithTabs: true,
+                  indentWithTabs: false,
                   foldGutter: true,
+                  autoCloseBrackets: true,
+                  autoCloseTags: true,
                   gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
                 },
             }
