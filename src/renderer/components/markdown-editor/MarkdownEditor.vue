@@ -140,6 +140,7 @@
         noteManager: new NoteManager(dataProvider),
         cmOption: {
           tabSize: 4,
+          theme: 'default',
         },
       }
     },

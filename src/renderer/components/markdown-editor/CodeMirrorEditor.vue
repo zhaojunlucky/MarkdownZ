@@ -5,10 +5,29 @@
 </template>
 
 <script>
-    require('codemirror/mode/gfm/gfm');
-    require('codemirror/addon/selection/active-line')
     require('codemirror/lib/codemirror.css');
-    const CodeMirror = require('codemirror');
+    require('codemirror/addon/fold/foldgutter.css')
+
+    import _CodeMirror from 'codemirror/lib/codemirror';
+    import 'codemirror/addon/selection/active-line'
+    import 'codemirror/addon/mode/overlay'
+    import 'codemirror/mode/xml/xml'
+    import 'codemirror/mode/markdown/markdown';
+    import 'codemirror/mode/gfm/gfm';
+    import 'codemirror/mode/javascript/javascript'
+    import 'codemirror/mode/css/css'
+    import 'codemirror/mode/htmlmixed/htmlmixed'
+    import 'codemirror/mode/clike/clike'
+    import 'codemirror/mode/meta'
+    import 'codemirror/addon/fold/foldcode'
+    import 'codemirror/addon/fold/foldgutter'
+    import 'codemirror/addon/fold/brace-fold'
+    import 'codemirror/addon/fold/xml-fold'
+    import 'codemirror/addon/fold/indent-fold'
+    import 'codemirror/addon/fold/markdown-fold'
+    import 'codemirror/addon/fold/comment-fold'
+
+    const CodeMirror = window.CodeMirror || _CodeMirror;
     console.log("CodeMirror");
 
     function mergeOptions(target, defaultOptions, options) {
@@ -29,12 +48,14 @@
                 content: '',
                 cm: null,
                 globalOptions: {
-                  mode: 'gfm',
+                  mode: "gfm",
                   lineNumbers: true,
                   lineWrapping: true,
                   styleActiveLine: true,
                   indentUnit: 4,
                   indentWithTabs: true,
+                  foldGutter: true,
+                  gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
                 },
             }
         },
@@ -114,9 +135,12 @@
 </script>
 
 <style>
-  .cm-tab {
-         background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAMCAYAAAAkuj5RAAAAAXNSR0IArs4c6QAAAGFJREFUSMft1LsRQFAQheHPowAKoACx3IgEKtaEHujDjORSgWTH/ZOdnZOcM/sgk/kFFWY0qV8foQwS4MKBCS3qR6ixBJvElOobYAtivseIE120FaowJPN75GMu8j/LfMwNjh4HUpwg4LUAAAAASUVORK5CYII=);
-         background-position: right;
-         background-repeat: no-repeat;
-      }
+  .cm-header { font-family: arial; }
+  .cm-header-1 { font-size: 150%; }
+  .cm-header-2 { font-size: 130%; }
+  .cm-header-3 { font-size: 120%; }
+  .cm-header-4 { font-size: 110%; }
+  .cm-header-5 { font-size: 100%; }
+  .cm-header-6 { font-size: 90%; }
+  .cm-strong { font-size: 140%; }
 </style>
