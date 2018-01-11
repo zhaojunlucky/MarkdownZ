@@ -51,6 +51,9 @@
                 cm: null,
                 globalOptions: {
                   mode: "gfm",
+                  tokenTypeOverrides: {
+                    emoji: "emoji"
+                  },
                   lineNumbers: true,
                   lineWrapping: true,
                   styleActiveLine: true,
