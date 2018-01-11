@@ -75,6 +75,7 @@
   import Note from './lib/note'
   import NoteManager from './lib/note-manager'
   import CodeMirrorEditor from './CodeMirrorEditor'
+  import SingleOperation from './single-operation'
 
   const electron = require('electron');
   const remote = electron.remote;
@@ -142,6 +143,7 @@
           tabSize: 4,
           theme: 'default',
         },
+        singleOperation: new SingleOperation(),
       }
     },
     created(){
@@ -181,12 +183,18 @@
           if(ret && ret.title != that.contextMenuOpNote.title){
             if(that.contextMenuOpNote.github){
               let renameNote = that.contextMenuOpNote;
+              if(!that.singleOperation.canOperate(renameNote.title)){
+                ElectronUtil.errorAlert("Concurrent Operation Error", `Another renaming request for ${renameNote.title} is on the way, please wait...`);
+                return;
+              }
               that.renameGHNote(that.contextMenuOpNote, ret.title).then(function(r){
                   renameNote.title = ret.title;
               }).catch(function(err){
                 if(ElectronUtil.confirm("Confirm", `Fail to rename on GitHub:,status: ${err.statusCode}, message: ${err.message}. Continue rename locally?`)){
                   renameNote.title = ret.title;
                 }
+              }).finally(function(){
+                that.singleOperation.removeOp(renameNote.title);
               });
             }
             
@@ -394,8 +402,10 @@
           let newN = new Note(JSON.parse(JSON.stringify(oldN.data)));
           newN.title = newTitle;
           that.checkGHToken().then(function(ghToken){
+
             let oldFileName = oldN.ghfilename;
             let newFileName = newN.ghfilename;
+
             if(oldFileName && newFileName){
               gh.renameFile(ghToken, '_posts', oldFileName, '_posts', newFileName, newN.ghcontent).then(function(r){
                 resolve(r);
@@ -429,11 +439,17 @@
       },
       saveGitHub() {
         let that = this;
+        
         this.checkGHToken().then(function(ghToken){
           let selNote = that.selectedNote;
           let note = new Note(selNote);
           let ghfilename = note.ghfilename;
+          
           if(ghfilename){
+            if(!that.singleOperation.canOperate(ghfilename)){
+              ElectronUtil.errorAlert("Concurrent Operation Error", `Another saving request ${note.title} is on the way, please wait...`);
+              return;
+            }
             gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, that.updateMessage).then(function(result){
               that.updateMessage(`File ${ghfilename} saved. New sha is ${result.commit.sha}`);
               selNote.github = true;
@@ -442,6 +458,8 @@
               }, 10000);
             }).catch(function(err){
               ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message);
+            }).finally(function(){
+              that.singleOperation.removeOp(ghfilename);
             });
           }else{
             ElectronUtil.errorAlert('Note Format Error', `Can't parse file name for note: ${selNote.title}`);
