@@ -178,13 +178,14 @@
             }
             ]
           })
-          if(ret){
+          if(ret && ret.title != that.contextMenuOpNote.title){
             if(that.contextMenuOpNote.github){
-              that.renameGHNote(that.contextMenuOpNote, ret.title).then(function(status){
-                that.contextMenuOpNote.title = ret.title;
+              let renameNote = that.contextMenuOpNote;
+              that.renameGHNote(that.contextMenuOpNote, ret.title).then(function(r){
+                  renameNote.title = ret.title;
               }).catch(function(err){
                 if(ElectronUtil.confirm("Confirm", `Fail to rename on GitHub:,status: ${err.statusCode}, message: ${err.message}. Continue rename locally?`)){
-                  that.contextMenuOpNote.title = ret.title;
+                  renameNote.title = ret.title;
                 }
               });
             }
@@ -382,23 +383,30 @@
             } else{
               reject("user canceled");
             }
+          }else{
+            resolve(ghToken);
           }
         });
       },
-      renameGHNote(note, newTitle){
+      renameGHNote(oldN, newTitle){
         let that = this;
         return new Promise(function(resolve, reject){
-          let newNote = JSON.parse(JSON.stringify(note));
-          newNote.title = newTitle;
-          this.checkGHToken(function(ghToken){
-            let oldN = new Note(note);
-            let newN = new Note(newNote);
-            gh.renameFile(ghToken, '_posts', oldN.ghfilename, '_posts', newN.ghfilename).then(function(status){
-              resolve(status);
-            }).catch(function(err){
-              reject(err);
-            });
-          });
+          let newN = new Note(JSON.parse(JSON.stringify(oldN.data)));
+          newN.title = newTitle;
+          that.checkGHToken().then(function(ghToken){
+            let oldFileName = oldN.ghfilename;
+            let newFileName = newN.ghfilename;
+            if(oldFileName && newFileName){
+              gh.renameFile(ghToken, '_posts', oldFileName, '_posts', newFileName, newN.ghcontent).then(function(r){
+                resolve(r);
+              }).catch(function(err){
+                reject(err);
+              });
+            } else{
+              ElectronUtil.errorAlert('Note Format Error', `Can't parse file name for note: ${note.title}`);
+            }
+            
+          }).catch(function(err){});
         });
       },
       addNote(){
@@ -421,22 +429,24 @@
       },
       saveGitHub() {
         let that = this;
-        this.checkGHToken(function(ghToken){
+        this.checkGHToken().then(function(ghToken){
           let selNote = that.selectedNote;
           let note = new Note(selNote);
           let ghfilename = note.ghfilename;
-          gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, function(status){
-            that.updateMessage(status);
-          }).then(function(status){
-            that.updateMessage(`File ${ghfilename} saved. New sha is ${status.commit.sha}`);
-            selNote.github = true;
-            __debounce(function(e){
-              that.updateMessage();
-            }, 10000);
-          }).catch(function(err){
-            ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message);
-          });
-        });
+          if(ghfilename){
+            gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, that.updateMessage).then(function(result){
+              that.updateMessage(`File ${ghfilename} saved. New sha is ${result.commit.sha}`);
+              selNote.github = true;
+              __debounce(function(e){
+                that.updateMessage();
+              }, 10000);
+            }).catch(function(err){
+              ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message);
+            });
+          }else{
+            ElectronUtil.errorAlert('Note Format Error', `Can't parse file name for note: ${selNote.title}`);
+          }
+        }).catch(function(err){});
       },
       exportFile(){
         var dialog = remote.dialog;

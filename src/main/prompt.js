@@ -14,7 +14,7 @@ export default class PromptUtil{
                     <div class="action-area">
                         <span class="error-msg" id="error-msg"></span>
                         <div class="button-strip"> 
-                            <button onclick="ok()">Ok</button>
+                            <button onclick="ok()">OK</button>
                             <button onclick="window.close()">Cancel</button>
                         </div>
                     </div>

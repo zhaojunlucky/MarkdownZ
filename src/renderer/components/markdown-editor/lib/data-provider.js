@@ -5,6 +5,7 @@ export default class DataProvider{
             "notes": "notes",
             "ghToken": "gh_token",
         }
+        console.log('DataProvider')
     }
 
     save(key, val){

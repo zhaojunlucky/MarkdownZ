@@ -1,3 +1,6 @@
+import GitHubJekyll from './github-jekyll'
+const dateFormat = require('dateformat')
+
 export default class Note{
     constructor(data){
         console.log('Note');
@@ -72,30 +75,30 @@ export default class Note{
     }
 
     get ghcontent(){
-        let title = `title: "${this.title}"`;
-        let updateDate = "update: " + dateFormat(new Date(), "yyyy-mm-dd HH:MM:ss o");
-        let updateContent = `\n${title}\n${updateDate}\n`;
-        let start = content.indexOf('---');
-        return content.slice(0, start + 3) + updateContent + content.slice(start + 4);
+        try{
+            let gj = new GitHubJekyll(this.content);
+            gj.setHeadItem("title", this.title);
+            let updateDate = dateFormat(new Date(), "yyyy-mm-dd HH:MM:ss o");
+            gj.setHeadItem("update", updateDate);
+            return gj.content;
+        }catch(e){
+            return this.content;
+        }
     }
 
     get ghfilename(){
-        let start = this.content.indexOf('---');
-        let end = this.content.indexOf(start + 3, '---');
-        let str = this.content.slice(start, end);
-        let datePattern = /date: (\d{4}-\d{2}-\d{2})/
-
-        let title = this.selectedNote.title;
-        let date = null;
-        matcher = str.match(datePattern);
-        if(matcher != null){
-          date = matcher[1];
+        try{
+            let gj = new GitHubJekyll(this.content);
+            const date = gj.getHeadItem("date");
+            if(date){
+                let m = date.value.match(/(\d{4}-\d{2}-\d{2})/);
+                if(m){
+                    return m[1] + '-' + this.title.replace(/(\s+)/g,'-') + '.markdown';
+                }
+            }
+        }catch(e){
+            console.log(e);
         }
-
-        if(date){
-          return date + '-' + title.replace(/(\s+)/g,'-') + '.markdown';
-        }
-
         return null;
     }
 }

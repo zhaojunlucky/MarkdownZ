@@ -2,6 +2,7 @@ const github = require('octonode');
 
 export default class GitHub{
     constructor(){
+        console.log('github')
     }
 
     getRepo(ghToken){
@@ -9,17 +10,23 @@ export default class GitHub{
     }
 
     checkFileExists(ghToken, filename){
+        let that = this;
         return new Promise(function(resolve, reject){
-            const ghrepo = github.client().repo(this.getRepo(ghToken));
+            const ghrepo = github.client().repo(that.getRepo(ghToken));
             ghrepo.contents(filename, function (err, status, body, headers) {
                 if(err){
                   if(err.statusCode == 404){
-                    resolve(false);
+                    resolve({
+                        result: false
+                    });
                   } else {
                     reject(err);
                   }
                 }else{
-                    resolve(true, status);
+                    resolve({
+                        result: true,
+                        body: status,
+                    });
                 }
             });
         });
@@ -62,19 +69,19 @@ export default class GitHub{
         let that = this;
         let fullPath = `${path}/${filename}`;
         return new Promise(function(resolve, reject){
-            that.statusCallback(`checking file ${fullPath} exists`);
-            this.checkFileExists(ghToken, fullPath).then(function(result, body){
-                if(result){
+            that.statusCallback(scb, `checking file ${fullPath} exists`);
+            that.checkFileExists(ghToken, fullPath).then(function(result){
+                if(result.result){
                     // update
-                    that.statusCallback(`updating file ${fullPath}`);
-                    that.updateFile(ghrepo, path, filename, body.sha, content).then(function(r){
+                    that.statusCallback(scb, `updating file ${fullPath}`);
+                    that.updateFile(ghrepo, path, filename, result.body.sha, content).then(function(r){
                         resolve(r);
                     }).catch(function(error){
                         reject(error);
                     });
                 } else{
                     // create
-                    that.statusCallback(`creating file ${fullPath}`);
+                    that.statusCallback(scb, `creating file ${fullPath}`);
                     that.createFile(ghrepo, path, filename, content).then(function(r){
                         resolve(r);
                     }).catch(function(error){
@@ -88,20 +95,19 @@ export default class GitHub{
         
     }
 
-    renameFile(ghToken, oldPath, oldName, newPath, newName){
+    renameFile(ghToken, oldPath, oldName, newPath, newName, newContent){
         const ghrepo = github.client(ghToken.token).repo(this.getRepo(ghToken));
         let that = this;
         return new Promise(function(resolve, reject){
             let oldFile = `${oldPath}/${oldName}`;
-            this.checkFileExists(ghToken, oldFile).then(function(result, body){
-                if(result){
-                    ghrepo.deleteContents(oldFile, `delete ${oldName}`, body.sha, function(err, status, body, headers){
+            that.checkFileExists(ghToken, oldFile).then(function(result){
+                if(result.result){
+                    ghrepo.deleteContents(oldFile, `delete ${oldName}`, result.body.sha, function(err, status, body, headers){
                         if(err){
                             reject(err);
                         }
                     }); //path
-                    let b = new Buffer(body.content, 'base64');
-                    that.saveFile(ghToken, newPath, newName, b.toString()).then(function(r){
+                    that.saveFile(ghToken, newPath, newName, newContent).then(function(r){
                         resolve(r);
                     }).catch(function(err){
                         reject(err);
