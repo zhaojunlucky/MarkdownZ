@@ -47,4 +47,16 @@ export default class ElectronUtil{
         let ret = ipcRenderer.sendSync('prompt', metadata);
         return ret == null? null : JSON.parse(ret);
     }
+
+    static showProgressDialog(){
+        ipcRenderer.sendSync('progress-show');
+    }
+
+    static updateProgress(message){
+        ipcRenderer.send('progress-update-main', message);
+    }
+
+    static finishProgress(){
+        ipcRenderer.send('progress-done-main');
+    }
 }

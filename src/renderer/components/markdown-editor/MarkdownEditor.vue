@@ -439,32 +439,35 @@
       },
       saveGitHub() {
         let that = this;
+        ElectronUtil.showProgressDialog();
         
-        this.checkGHToken().then(function(ghToken){
-          let selNote = that.selectedNote;
-          let note = new Note(selNote);
-          let ghfilename = note.ghfilename;
+        ElectronUtil.finishProgress();
+        ElectronUtil.updateProgress("testing");
+        // this.checkGHToken().then(function(ghToken){
+        //   let selNote = that.selectedNote;
+        //   let note = new Note(selNote);
+        //   let ghfilename = note.ghfilename;
           
-          if(ghfilename){
-            if(!that.singleOperation.canOperate(ghfilename)){
-              ElectronUtil.errorAlert("Concurrent Operation Error", `Another saving request ${note.title} is on the way, please wait...`);
-              return;
-            }
-            gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, that.updateMessage).then(function(result){
-              that.updateMessage(`File ${ghfilename} saved. New sha is ${result.commit.sha}`);
-              selNote.github = true;
-              __debounce(function(e){
-                that.updateMessage();
-              }, 10000);
-            }).catch(function(err){
-              ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message);
-            }).finally(function(){
-              that.singleOperation.removeOp(ghfilename);
-            });
-          }else{
-            ElectronUtil.errorAlert('Note Format Error', `Can't parse file name for note: ${selNote.title}`);
-          }
-        }).catch(function(err){});
+        //   if(ghfilename){
+        //     if(!that.singleOperation.canOperate(ghfilename)){
+        //       ElectronUtil.errorAlert("Concurrent Operation Error", `Another saving request ${note.title} is on the way, please wait...`);
+        //       return;
+        //     }
+        //     gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, that.updateMessage).then(function(result){
+        //       that.updateMessage(`File ${ghfilename} saved. New sha is ${result.commit.sha}`);
+        //       selNote.github = true;
+        //       __debounce(function(e){
+        //         that.updateMessage();
+        //       }, 10000);
+        //     }).catch(function(err){
+        //       ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message);
+        //     }).finally(function(){
+        //       that.singleOperation.removeOp(ghfilename);
+        //     });
+        //   }else{
+        //     ElectronUtil.errorAlert('Note Format Error', `Can't parse file name for note: ${selNote.title}`);
+        //   }
+        // }).catch(function(err){});
       },
       exportFile(){
         var dialog = remote.dialog;
