@@ -8,12 +8,13 @@ import progressUtil from './progress'
  * Set `__static` path to static files in production
  * https://simulatedgreg.gitbooks.io/electron-vue/content/en/using-static-assets.html
  */
-if (process.env.NODE_ENV !== 'development') {
+ let dev = process.env.NODE_ENV === 'development';
+if (!dev) {
   global.__static = require('path').join(__dirname, '/static').replace(/\\/g, '\\\\')
 }
 
 let mainWindow
-const winURL = process.env.NODE_ENV === 'development'
+const winURL = dev
   ? `http://localhost:9080`
   : `file://${__dirname}/index.html`
 
@@ -48,7 +49,7 @@ function createWindow () {
         movable: false,
         alwaysOnTop: false,
         parent: mainWindow,
-        modal: true,
+        modal: !dev,
         frame: false
     });
 
@@ -78,7 +79,7 @@ function createWindow () {
         movable: false,
         alwaysOnTop: false,
         parent: mainWindow,
-        modal: true,
+        modal: !dev,
         frame: false
     });
     progressWindow.once('ready-to-show', () => {

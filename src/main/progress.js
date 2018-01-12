@@ -34,6 +34,10 @@ h2 {
   display: none;
 }
 
+.message{
+  font-size: 20px;
+}
+
 </style>
 <div class="lds-css ng-scope">
   <div style="width:100%;height:100%" class="lds-wedges">
@@ -135,7 +139,7 @@ h2 {
   transform: translate(-64px, -64px) scale(0.64) translate(64px, 64px);
 }
 </style></div>
-<h5><span id="message">Please wait...<span></h5>
+<span id="message" class="message">Please wait...<span>
 <a id="close" href="javascript:window.close()">Close this Window</a>
 <script>
     const ipcRenderer = require('electron').ipcRenderer;

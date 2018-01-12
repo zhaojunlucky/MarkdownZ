@@ -75,7 +75,6 @@
   import Note from './lib/note'
   import NoteManager from './lib/note-manager'
   import CodeMirrorEditor from './CodeMirrorEditor'
-  import SingleOperation from './lib/single-operation'
 
   const electron = require('electron');
   const remote = electron.remote;
@@ -143,7 +142,6 @@
           tabSize: 4,
           theme: 'default',
         },
-        singleOperation: new SingleOperation(),
       }
     },
     created(){
@@ -183,18 +181,17 @@
           if(ret && ret.title != that.contextMenuOpNote.title){
             if(that.contextMenuOpNote.github){
               let renameNote = that.contextMenuOpNote;
-              if(!that.singleOperation.canOperate(renameNote.title)){
-                ElectronUtil.errorAlert("Concurrent Operation Error", `Another renaming request for ${renameNote.title} is on the way, please wait...`);
-                return;
-              }
+              ElectronUtil.showProgressDialog();
               that.renameGHNote(that.contextMenuOpNote, ret.title).then(function(r){
                   renameNote.title = ret.title;
+                  ElectronUtil.updateProgress(`${renameNote.title} has been renamed to ${ret.title}`);
               }).catch(function(err){
-                if(ElectronUtil.confirm("Confirm", `Fail to rename on GitHub:,status: ${err.statusCode}, message: ${err.message}. Continue rename locally?`)){
-                  renameNote.title = ret.title;
-                }
+                // if(ElectronUtil.confirm("Confirm", `Fail to rename on GitHub:,status: ${err.statusCode}, message: ${err.message}. Continue rename locally?`)){
+                //   renameNote.title = ret.title;
+                // }
+                ElectronUtil.updateProgress(`Fail to rename on GitHub:,status: ${err.statusCode}, message: ${err.message}`);
               }).finally(function(){
-                that.singleOperation.removeOp(renameNote.title);
+                ElectronUtil.finishProgress();
               });
             }
             
@@ -439,35 +436,27 @@
       },
       saveGitHub() {
         let that = this;
-        ElectronUtil.showProgressDialog();
-        
-        ElectronUtil.finishProgress();
-        ElectronUtil.updateProgress("testing");
-        // this.checkGHToken().then(function(ghToken){
-        //   let selNote = that.selectedNote;
-        //   let note = new Note(selNote);
-        //   let ghfilename = note.ghfilename;
+
+        this.checkGHToken().then(function(ghToken){
+          let selNote = that.selectedNote;
+          let note = new Note(selNote);
+          let ghfilename = note.ghfilename;
           
-        //   if(ghfilename){
-        //     if(!that.singleOperation.canOperate(ghfilename)){
-        //       ElectronUtil.errorAlert("Concurrent Operation Error", `Another saving request ${note.title} is on the way, please wait...`);
-        //       return;
-        //     }
-        //     gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, that.updateMessage).then(function(result){
-        //       that.updateMessage(`File ${ghfilename} saved. New sha is ${result.commit.sha}`);
-        //       selNote.github = true;
-        //       __debounce(function(e){
-        //         that.updateMessage();
-        //       }, 10000);
-        //     }).catch(function(err){
-        //       ElectronUtil.errorAlert("GitHub Error " + err.statusCode, err.message);
-        //     }).finally(function(){
-        //       that.singleOperation.removeOp(ghfilename);
-        //     });
-        //   }else{
-        //     ElectronUtil.errorAlert('Note Format Error', `Can't parse file name for note: ${selNote.title}`);
-        //   }
-        // }).catch(function(err){});
+          if(ghfilename){
+            ElectronUtil.showProgressDialog();
+            gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, ElectronUtil.updateProgress).then(function(result){
+              ElectronUtil.updateProgress(`File ${ghfilename} saved. New sha is ${result.commit.sha}`);
+              selNote.github = true;
+              
+            }).catch(function(err){
+              ElectronUtil.updateProgress(`GitHub Error ${err.statusCode}: ${err.message}`);
+            }).finally(function(){
+              ElectronUtil.finishProgress();
+            });
+          }else{
+            ElectronUtil.errorAlert('Note Format Error', `Can't parse file name for note: ${selNote.title}`);
+          }
+        }).catch(function(err){});
       },
       exportFile(){
         var dialog = remote.dialog;

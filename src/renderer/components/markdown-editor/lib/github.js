@@ -69,11 +69,11 @@ export default class GitHub{
         let that = this;
         let fullPath = `${path}/${filename}`;
         return new Promise(function(resolve, reject){
-            that.statusCallback(scb, `checking file ${fullPath} exists`);
+            that.statusCallback(scb, `Checking file ${fullPath} exists`);
             that.checkFileExists(ghToken, fullPath).then(function(result){
                 if(result.result){
                     // update
-                    that.statusCallback(scb, `updating file ${fullPath}`);
+                    that.statusCallback(scb, `Updating file ${fullPath}`);
                     that.updateFile(ghrepo, path, filename, result.body.sha, content).then(function(r){
                         resolve(r);
                     }).catch(function(error){
@@ -81,7 +81,7 @@ export default class GitHub{
                     });
                 } else{
                     // create
-                    that.statusCallback(scb, `creating file ${fullPath}`);
+                    that.statusCallback(scb, `Creating file ${fullPath}`);
                     that.createFile(ghrepo, path, filename, content).then(function(r){
                         resolve(r);
                     }).catch(function(error){
