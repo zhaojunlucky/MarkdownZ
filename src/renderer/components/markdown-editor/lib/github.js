@@ -12,7 +12,6 @@ export default class GitHub{
     checkFileExists(ghrepo, filename){
         let that = this;
         return new Promise(function(resolve, reject){
-            try{
             ghrepo.contents(filename, function (err, data, headers) {
                 if(err){
                   if(err.statusCode == 404){
@@ -28,9 +27,7 @@ export default class GitHub{
                         body: data,
                     });
                 }
-            });} catch(e){
-                console.log(e);
-            }
+            });
         });
     }
 
