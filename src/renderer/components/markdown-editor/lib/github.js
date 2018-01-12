@@ -9,11 +9,11 @@ export default class GitHub{
         return `${ghToken.user}/${ghToken.user}.github.io`;
     }
 
-    checkFileExists(ghToken, filename){
+    checkFileExists(ghrepo, filename){
         let that = this;
         return new Promise(function(resolve, reject){
-            const ghrepo = github.client().repo(that.getRepo(ghToken));
-            ghrepo.contents(filename, function (err, status, body, headers) {
+            try{
+            ghrepo.contents(filename, function (err, data, headers) {
                 if(err){
                   if(err.statusCode == 404){
                     resolve({
@@ -25,26 +25,28 @@ export default class GitHub{
                 }else{
                     resolve({
                         result: true,
-                        body: status,
+                        body: data,
                     });
                 }
-            });
+            });} catch(e){
+                console.log(e);
+            }
         });
     }
 
-    processResult(resolve, reject, err, status, body, header, name){
+    processResult(resolve, reject, err, data, header, name){
         if(err) {
             reject(err);
         } else {
-            resolve(status);
+            resolve(data);
         }
     }
 
     createFile(ghrepo, path, filename, content){
         let that = this;
         return new Promise(function(resolve, reject){
-            ghrepo.createContents(`${path}/${filename}`, `create ${filename}`, content, function (err, status, body, headers){
-                  that.processResult(resolve, reject, err, status, body, headers, name);
+            ghrepo.createContents(`${path}/${filename}`, `create ${filename}`, content, function (err, data, headers){
+                  that.processResult(resolve, reject, err, data, headers, name);
                 }); //path
         });
     }
@@ -52,8 +54,8 @@ export default class GitHub{
     updateFile(ghrepo, path, filename, sha, content){
         let that = this;
         return new Promise(function(resolve, reject){
-            ghrepo.updateContents(`${path}/${filename}`, `update ${filename}`, content, sha, function (err, status, body, headers){
-                that.processResult(resolve, reject, err, status, body, headers, name);
+            ghrepo.updateContents(`${path}/${filename}`, `update ${filename}`, content, sha, function (err, data, headers){
+                that.processResult(resolve, reject, err, data, headers, name);
               }); 
         });
     }
@@ -70,7 +72,7 @@ export default class GitHub{
         let fullPath = `${path}/${filename}`;
         return new Promise(function(resolve, reject){
             that.statusCallback(scb, `Checking file ${fullPath} exists`);
-            that.checkFileExists(ghToken, fullPath).then(function(result){
+            that.checkFileExists(ghrepo, fullPath).then(function(result){
                 if(result.result){
                     // update
                     that.statusCallback(scb, `Updating file ${fullPath}`);
@@ -100,7 +102,7 @@ export default class GitHub{
         let that = this;
         return new Promise(function(resolve, reject){
             let oldFile = `${oldPath}/${oldName}`;
-            that.checkFileExists(ghToken, oldFile).then(function(result){
+            that.checkFileExists(ghrepo, oldFile).then(function(result){
                 if(result.result){
                     ghrepo.deleteContents(oldFile, `delete ${oldName}`, result.body.sha, function(err, status, body, headers){
                         if(err){

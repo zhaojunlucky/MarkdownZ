@@ -75,7 +75,7 @@ function createWindow () {
         width: 640,
         height: 430,
         show: false,
-        resizable: true,
+        resizable: dev,
         movable: false,
         alwaysOnTop: false,
         parent: mainWindow,
