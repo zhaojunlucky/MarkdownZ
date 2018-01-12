@@ -39,9 +39,11 @@ function createWindow () {
         width: 400,
         height: 200 + (25 * arg.inputs.length) ,
         show: false,
-        resizable: true,
+        resizable: false,
         movable: false,
-        alwaysOnTop: true,
+        alwaysOnTop: false,
+        parent: mainWindow,
+        model: true,
         frame: false
     })
     arg.val = arg.val || ''

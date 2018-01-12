@@ -75,7 +75,7 @@
   import Note from './lib/note'
   import NoteManager from './lib/note-manager'
   import CodeMirrorEditor from './CodeMirrorEditor'
-  import SingleOperation from './single-operation'
+  import SingleOperation from './lib/single-operation'
 
   const electron = require('electron');
   const remote = electron.remote;
