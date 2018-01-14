@@ -49,7 +49,7 @@ export default class ElectronUtil{
     }
 
     static showProgressDialog(){
-        ipcRenderer.sendSync('progress-show');
+        ipcRenderer.send('progress-show');
     }
 
     static updateProgress(message){

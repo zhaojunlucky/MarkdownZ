@@ -84,7 +84,6 @@ function createWindow () {
     });
     progressWindow.once('ready-to-show', () => {
       progressWindow.show();
-      event.returnValue = 'ok';
     });
     progressWindow.on('close', function () { progressWindow = null })
     progressWindow.loadURL('data:text/html,' + progressUtil.getHTMLTemplate());

@@ -139,7 +139,7 @@ h2 {
   transform: translate(-64px, -64px) scale(0.64) translate(64px, 64px);
 }
 </style></div>
-<span id="message" class="message">Please wait...<span>
+<span id="message" class="message">Please wait...</span>
 <a id="close" href="javascript:window.close()">Close this Window</a>
 <script>
     const ipcRenderer = require('electron').ipcRenderer;

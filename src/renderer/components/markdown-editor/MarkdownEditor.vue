@@ -185,12 +185,12 @@
               that.renameGHNote(that.contextMenuOpNote, ret.title).then(function(r){
                   renameNote.title = ret.title;
                   ElectronUtil.updateProgress(`${renameNote.title} has been renamed to ${ret.title}`);
+                  ElectronUtil.finishProgress();
               }).catch(function(err){
                 // if(ElectronUtil.confirm("Confirm", `Fail to rename on GitHub:,status: ${err.statusCode}, message: ${err.message}. Continue rename locally?`)){
                 //   renameNote.title = ret.title;
                 // }
                 ElectronUtil.updateProgress(`Fail to rename on GitHub:,status: ${err.statusCode}, message: ${err.message}`);
-              }).finally(function(){
                 ElectronUtil.finishProgress();
               });
             }
@@ -439,20 +439,22 @@
 
         this.checkGHToken().then(function(ghToken){
           let selNote = that.selectedNote;
-          let note = new Note(selNote);
+          let note = new Note(selNote.data);
           let ghfilename = note.ghfilename;
           
           if(ghfilename){
             ElectronUtil.showProgressDialog();
-            gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, ElectronUtil.updateProgress).then(function(result){
+            gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, function(sta){
+              ElectronUtil.updateProgress(sta);
+            }).then(function(result){
               ElectronUtil.updateProgress(`File ${ghfilename} saved. New sha is ${result.commit.sha}`);
               selNote.github = true;
-              
+              ElectronUtil.finishProgress();
             }).catch(function(err){
               ElectronUtil.updateProgress(`GitHub Error ${err.statusCode}: ${err.message}`);
-            }).finally(function(){
               ElectronUtil.finishProgress();
             });
+
           }else{
             ElectronUtil.errorAlert('Note Format Error', `Can't parse file name for note: ${selNote.title}`);
           }
