@@ -45,7 +45,7 @@
       </div>
       <div class="vmd-body" ref="vmdBody">
         <template v-if="selectedNote">
-          <CodeMirrorEditor v-model="selectedNote.content" :options="cmOption" :readonly="selectedId == null || selectedNote.id == null" @scroll="vmdSyncScrolling(cm)" @focus="vmdActive" @blur="vmdInactive" @contextmenu="onCMContextmenu" class="vmd-editor CodeMirror" style="overflow-y: hidden; padding: 0px;" ref="vmdEditor"></CodeMirrorEditor>
+          <CodeMirrorEditor v-model="selectedNote.content" :options="cmOption" :readonly="disabled" @scroll="vmdSyncScrolling(cm)" @focus="vmdActive" @blur="vmdInactive" @contextmenu="onCMContextmenu" class="vmd-editor CodeMirror" style="overflow-y: hidden; padding: 0px;" ref="vmdEditor"></CodeMirrorEditor>
           <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
         </template>
       </div>
@@ -284,6 +284,9 @@
         return this.isPreview ? null : {
           width: '100%'
         }
+      },
+      disabled(){
+        return this.selectedId == null || this.selectedNote.id == null || this.noteManager.notes.length == 0;
       },
       previewClass() {
         return this.isPreview ? 'fa fa-eye-slash' : 'fa fa-eye'
@@ -664,6 +667,7 @@
             "Ctrl-Q": (cm) => that.me.addQuote(),
         };
         this.cm.setOption("extraKeys", extraKeys);
+        this.cm.setOption("readOnly", this.disabled);
       },
       __removeDom() {
         this.vmd = null;
