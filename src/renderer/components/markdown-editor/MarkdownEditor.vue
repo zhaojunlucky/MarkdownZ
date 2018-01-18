@@ -12,35 +12,35 @@
     <div class="vmd" ref="vmd">
       <div class="vmd-header" ref="vmdHeader">
         <div class="vmd-btn-group">
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addBold" title="Bold (Ctrl + B)"><i class="fa fa-bold" aria-hidden="true"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addItalic" title="Italic (Ctrl + I)"><i class="fa fa-italic" aria-hidden="true"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading(markdown.h1)" title="Head 1 (Ctrl + 1)"><i class="fa heading-bold" aria-hidden="true">H1</i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading(markdown.h2)" title="Head 2 (Ctrl + 2)"><i class="fa heading-bold" aria-hidden="true">H2</i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading(markdown.h3)" title="Head 3 (Ctrl + 3)"><i class="fa heading-bold" aria-hidden="true">H3</i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addStrikethrough" title="Strikethrough (Ctrl + D)"><i class="fa fa-strikethrough" aria-hidden="true"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addHR" title="Horizontal rule (Ctrl + R)"><i class="fa fa-minus" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addBold" title="Bold (Ctrl + B)" :disabled="disabled"><i class="fa fa-bold" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addItalic" title="Italic (Ctrl + I)" :disabled="disabled"><i class="fa fa-italic" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading(markdown.h1)" title="Head 1 (Ctrl + 1)" :disabled="disabled"><i class="fa heading-bold" aria-hidden="true">H1</i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading(markdown.h2)" title="Head 2 (Ctrl + 2)" :disabled="disabled"><i class="fa heading-bold" aria-hidden="true">H2</i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading(markdown.h3)" title="Head 3 (Ctrl + 3)" :disabled="disabled"><i class="fa heading-bold" aria-hidden="true">H3</i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addStrikethrough" title="Strikethrough (Ctrl + D)" :disabled="disabled"><i class="fa fa-strikethrough" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHR" title="Horizontal rule (Ctrl + R)" :disabled="disabled"><i class="fa fa-minus" aria-hidden="true"></i></button>
           
         </div>
         <div class="vmd-btn-group">
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addUl" title="Unordered list (Ctrl + U)"><i class="fa fa-list-ul" aria-hidden="true"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addOl" title="Ordered list (Ctrl + O)"><i class="fa fa-list-ol" aria-hidden="true"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addTable" title="Table (Ctrl + T)"><i class="fa fa-table" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addUl" title="Unordered list (Ctrl + U)" :disabled="disabled"><i class="fa fa-list-ul" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addOl" title="Ordered list (Ctrl + O)" :disabled="disabled"><i class="fa fa-list-ol" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addTable" title="Table (Ctrl + T)" :disabled="disabled"><i class="fa fa-table" aria-hidden="true"></i></button>
         </div>
         <div class="vmd-btn-group">
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addLink" title="Hyperlink (Ctrl + L)"><i class="fa fa-link" aria-hidden="true"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addImage" title="Image (Ctrl + G)"><i class="fa fa-picture-o" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addLink" title="Hyperlink (Ctrl + L)" :disabled="disabled"><i class="fa fa-link" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addImage" title="Image (Ctrl + G)" :disabled="disabled"><i class="fa fa-picture-o" aria-hidden="true"></i></button>
         </div>
         <div class="vmd-btn-group">
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addCode" title="Code (Ctrl + K)"><i class="fa fa-code" aria-hidden="true"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addQuote" title="Quote (Ctrl + Q)"><i class="fa fa-quote-left" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addCode" title="Code (Ctrl + K)" :disabled="disabled"><i class="fa fa-code" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addQuote" title="Quote (Ctrl + Q)" :disabled="disabled"><i class="fa fa-quote-left" aria-hidden="true"></i></button>
         </div>
         <div class="vmd-btn-group">
           <button type="button" title="Preview" class="vmd-btn vmd-btn-default" @click="preview"><i :class="previewClass" aria-hidden="true"></i></button>
           <button type="button" title="HTML" class="vmd-btn vmd-btn-default" @click="sanitizeHtml">HTML</button>
         </div>
         <div class="vmd-btn-group">
-          <button type="button" title="Save to GitHub" class="vmd-btn vmd-btn-default" @click="saveGitHub"><i class="fa fa-github" aria-hidden="true"></i></button>
-          <button type="button" title="Export to file" class="vmd-btn vmd-btn-default" @click="exportFile"><i class="fa fa-floppy-o" aria-hidden="true"></i></button>
+          <button type="button" title="Save to GitHub" class="vmd-btn vmd-btn-default" @click="saveGitHub" :disabled="disabled"><i class="fa fa-github" aria-hidden="true"></i></button>
+          <button type="button" title="Export to file" class="vmd-btn vmd-btn-default" @click="exportFile" :disabled="disabled"><i class="fa fa-floppy-o" aria-hidden="true"></i></button>
         </div>
       </div>
       <div class="vmd-body" ref="vmdBody">
@@ -728,8 +728,16 @@
     cursor: pointer;
   }
 
-  button:hover {
+  button:enabled:hover {
     background: #63c89b;
+  }
+
+  button:disabled {
+    background: #dddddd;
+  }
+
+  button:disabled:hover {
+    background: #dddddd;
   }
 
   .CodeMirror { height: inherit !important; }
