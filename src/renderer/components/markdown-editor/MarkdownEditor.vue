@@ -2,7 +2,7 @@
   <div class="root">
     <aside class="side-bar">
       <div class="toolbar" id="test">
-        <button @click="addNote" :title="notes.length + ' note(s) already'"><i class="fa fa-plus" aria-hidden="true"></i> Add note</button>
+        <button @click="addNote" :title="noteManager.notes.length + ' note(s) already'"><i class="fa fa-plus" aria-hidden="true"></i> Add note</button>
       </div>
       <div class="notes">
         <div class="note" v-for="note of sortedNotes" :class="{selected: note === selectedNote}" @click="selectNote(note)" @contextmenu="openNoteContextMenu(note)">{{note.title}}</div>
@@ -12,11 +12,11 @@
     <div class="vmd" ref="vmd">
       <div class="vmd-header" ref="vmdHeader">
         <div class="vmd-btn-group">
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addStrong" title="Bold (Ctrl + B)"><i class="fa fa-bold" aria-hidden="true"></i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addBold" title="Bold (Ctrl + B)"><i class="fa fa-bold" aria-hidden="true"></i></button>
           <button type="button" class="vmd-btn vmd-btn-default" @click="addItalic" title="Italic (Ctrl + I)"><i class="fa fa-italic" aria-hidden="true"></i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading('#')" title="Head 1 (Ctrl + 1)"><i class="fa heading-bold" aria-hidden="true">H1</i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading('##')" title="Head 2 (Ctrl + 2)"><i class="fa heading-bold" aria-hidden="true">H2</i></button>
-          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading('###')" title="Head 3 (Ctrl + 3)"><i class="fa heading-bold" aria-hidden="true">H3</i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading(markdown.h1)" title="Head 1 (Ctrl + 1)"><i class="fa heading-bold" aria-hidden="true">H1</i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading(markdown.h2)" title="Head 2 (Ctrl + 2)"><i class="fa heading-bold" aria-hidden="true">H2</i></button>
+          <button type="button" class="vmd-btn vmd-btn-default" @click="addHeading(markdown.h3)" title="Head 3 (Ctrl + 3)"><i class="fa heading-bold" aria-hidden="true">H3</i></button>
           <button type="button" class="vmd-btn vmd-btn-default" @click="addStrikethrough" title="Strikethrough (Ctrl + D)"><i class="fa fa-strikethrough" aria-hidden="true"></i></button>
           <button type="button" class="vmd-btn vmd-btn-default" @click="addHR" title="Horizontal rule (Ctrl + R)"><i class="fa fa-minus" aria-hidden="true"></i></button>
           
@@ -45,31 +45,7 @@
       </div>
       <div class="vmd-body" ref="vmdBody">
         <template v-if="selectedNote">
-          <textarea class="vmd-editor" :style="vmdEditorStyle" ref="vmdEditor" v-model="selectedNote.content"
-                    title="Write with markdown"
-                    :disabled="selectedId == null"
-                    @input="vmdInputting($event.target.value)"
-                    @focus="vmdActive"
-                    @blur="vmdInactive"
-                    @keydown.tab.prevent="addTab"
-                    @keydown.ctrl.b.prevent="addStrong"
-                    @keydown.ctrl.i.prevent="addItalic"
-                    @keydown.ctrl.d.prevent="addStrikethrough"
-                    @keydown.ctrl.49.prevent="addHeading('#')"
-                    @keydown.ctrl.50.prevent="addHeading('##')"
-                    @keydown.ctrl.51.prevent="addHeading('###')"
-                    @keydown.ctrl.r.prevent="addHR"
-                    @keydown.ctrl.q.prevent="addQuote"
-                    @keydown.ctrl.k.prevent="addCode"
-                    @keydown.ctrl.l.prevent="addLink"
-                    @keydown.ctrl.g.prevent="addImage"
-                    @keydown.ctrl.t.prevent="addTable"
-                    @keydown.ctrl.u.prevent="addUl"
-                    @keydown.ctrl.o.prevent="addOl"
-                    @keydown.enter.prevent="addEnter"
-                    @keydown.ctrl.a.prevent="selectAll"
-                    @keydown.ctrl.c.prevent="copyAll"
-          ></textarea>
+          <CodeMirrorEditor v-model="selectedNote.content" :options="cmOption" :readonly="disabled" @scroll="vmdSyncScrolling(cm)" @focus="vmdActive" @blur="vmdInactive" @contextmenu="onCMContextmenu" class="vmd-editor CodeMirror" style="overflow-y: hidden; padding: 0px;" ref="vmdEditor"></CodeMirrorEditor>
           <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
         </template>
       </div>
@@ -92,64 +68,23 @@
   import './styles/markdown.css'
   import './styles/font-awesome-4.7.0/css/font-awesome.min.css'
 
-  import locale from './locale/en'
+  import MEditor from './lib/meditor'
+  import DataProvider from './lib/data-provider'
+  import ElectronUtil from './lib/electron-util'
+  import GitHub from './lib/github'
+  import Note from './lib/note'
+  import NoteManager from './lib/note-manager'
+  import CodeMirrorEditor from './CodeMirrorEditor'
 
   const electron = require('electron');
-  const clipboard = electron.clipboard;
-  const ipcRenderer = require('electron').ipcRenderer
   const remote = electron.remote;
   const Menu = remote.Menu;
   const MenuItem = remote.MenuItem;
-  const dateFormat = require('dateformat');
-  const github = require('octonode');
   const fs = require('fs');
-  const shell = require('electron').shell;
+  console.log('start');
+  const dataProvider = new DataProvider();
+  const gh = new GitHub();
 
-  function hackLinks(){
-    console.log('a');
-    const links = document.querySelectorAll('a[href]');
-
-    Array.prototype.forEach.call(links, function (link) {
-      const url = link.getAttribute('href')
-      if (url.indexOf('http') === 0) {
-        link.addEventListener('click', function (e) {
-          e.preventDefault()
-          shell.openExternal(url)
-        })
-      }
-    });
-  }
-
-
-  function confirm(title, message){
-    var dialog = remote.dialog;
-    var choice = dialog.showMessageBox(
-            remote.getCurrentWindow(),
-            {
-                type: 'question',
-                buttons: ['Yes', 'No'],
-                title: title,
-                message: message
-            });
-    return choice == 0;
-  }
-
-  function errorAlert(title, message){
-    var dialog = remote.dialog;
-    dialog.showMessageBox(
-            remote.getCurrentWindow(),
-            {
-                type: 'error',
-                buttons: ['OK'],
-                title: title,
-                message: message
-            });
-  }
-
-  function inputPrompt(metadata){
-    let ret = ipcRenderer.sendSync('prompt', metadata);
-    return ret == null? null : JSON.parse(ret);
-  }
 
   // 配置marked环境
   marked.setOptions({
@@ -157,7 +92,6 @@
       return hljs ? hljs.highlightAuto(code).value : code
     }
   });
-
   /**
    * 定义__debounce函数
    *
@@ -177,13 +111,9 @@
     }
   }
 
-  function loadSelectedId(){
-    let selId = localStorage.getItem('selected-id');
-    return selId == "null"? null : selId;
-  }
-
   export default {
-    name: 'VueEditor',
+    name: 'MarkdownEditor',
+    components:{CodeMirrorEditor},
     props: {
       value: {
         type: String,
@@ -196,23 +126,27 @@
         vmdBody: null,
         vmdHeader: null,
         vmdFooter: null,
-        vmdEditor: null,
         vmdPreview: null,
-        vmdInput: '---\nlayout: post\ntitle: "<title>"\ndate: <date>\ncategories: cat1 cat2\n---\n\n',
-        lang: 'en',
         isPreview: true,
         isSanitize: true,
-        notes: JSON.parse(localStorage.getItem('notes')) || [],
-        selectedId: loadSelectedId(),
+        selectedId: dataProvider.loadSelectedNoteId(),
         noteContextMenu: null,
+        cmContextmenu: null,
         contextMenuOpNote: null,
         addedLink: false,
         messageTxt: "",
+        me: null,
+        markdown: MEditor.Markdown,
+        noteManager: new NoteManager(dataProvider),
+        cmOption: {
+          tabSize: 4,
+          theme: 'default',
+        },
       }
     },
     created(){
       let that = this;
-      this.noteContextMenu = new Menu()
+      this.noteContextMenu = new Menu();
       this.noteContextMenu.append(new MenuItem({
         label: "New note with title", click: function(){
           let inputDef = {
@@ -226,14 +160,14 @@
             ]
           }
 
-          let ret = inputPrompt(inputDef);
+          let ret = ElectronUtil.inputPrompt(inputDef);
           if(ret != null){
             that.addNoteWithTitle(ret.title);
           }
         }
       }));
       this.noteContextMenu.append(new MenuItem({ label: 'Rename', click: function(){
-          let ret = inputPrompt({
+          let ret = ElectronUtil.inputPrompt({
             title:'Rename', 
             inputs:[ 
             {
@@ -244,31 +178,90 @@
             }
             ]
           })
-          if(ret){
-            that.contextMenuOpNote.title = ret.title;
+          if(ret && ret.title != that.contextMenuOpNote.title){
+            if(that.contextMenuOpNote.github){
+              let renameNote = that.contextMenuOpNote;
+              ElectronUtil.showProgressDialog();
+              that.renameGHNote(that.contextMenuOpNote, ret.title).then(function(r){
+                  renameNote.title = ret.title;
+                  ElectronUtil.updateProgress(`${renameNote.title} has been renamed to ${ret.title}`);
+                  ElectronUtil.finishProgress();
+              }).catch(function(err){
+                // if(ElectronUtil.confirm("Confirm", `Fail to rename on GitHub:,status: ${err.statusCode}, message: ${err.message}. Continue rename locally?`)){
+                //   renameNote.title = ret.title;
+                // }
+                ElectronUtil.updateProgress(`Fail to rename on GitHub:,status: ${err.statusCode}, message: ${err.message}`);
+                ElectronUtil.finishProgress();
+              });
+            }
+            
           }
           that.contextMenuOpNote = null;
         }}))
       this.noteContextMenu.append(new MenuItem({ type: 'separator' }))
       this.noteContextMenu.append(new MenuItem({ label: 'Delete', click: function(){
-          if(confirm("Confirm", "Are you sure to delete '" + that.contextMenuOpNote.title + "' ?")){
-            const index = that.notes.indexOf(that.contextMenuOpNote)
-            if (index !== -1) {
-              that.notes.splice(index, 1);
-              
-              if((that.selectedId && that.selectedId === that.contextMenuOpNote.id) || !that.notes.length) {
-                that.selectedId = (that.notes.length)?that.notes[0].id : null; 
-              }
-            }
-
-            if((that.selectedNote && that.contextMenuOpNote.id === that.selectedNote.id) || that.notes.length == 0){
-              //that.selectedNote = null;
-              that.selectedId = null;
-            }
-
+          if(ElectronUtil.confirm("Confirm", `Are you sure to delete ${that.contextMenuOpNote.title} ?`)){
+            that.removeNote(that.noteManager.removeNote(that.contextMenuOpNote));
           }
           that.contextMenuOpNote = null;
         }}));
+
+      this.cmContextMenu = new Menu();
+      this.cmContextMenu.append(new MenuItem({
+        label: 'Undo',
+        accelerator: "Ctrl+Z",
+        id: 'undo',
+        click: () => this.cm.undo(),
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        label: "Redo",
+        accelerator: "Ctrl+Y",
+        id: "redo",
+        click: () => this.cm.redo(),
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        type: 'separator'
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        label: 'Cut',
+        accelerator: "Ctrl+X",
+        id: "cut",
+        click: () => this.me.cutSelection(),
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        label: "Copy",
+        accelerator: "Ctrl+C",
+        id: "copy",
+        click: () => this.me.copySelection(),
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        label: "Paste",
+        accelerator: "Ctrl+V",
+        id: "paste",
+        click: () => this.me.paste(),
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        label: "Delete",
+        accelerator: "Delete",
+        id: "delete",
+        click: () => this.me.deleteSelection(),
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        type: 'separator'
+      }));
+
+      this.cmContextMenu.append(new MenuItem({
+        label: "Select All",
+        accelerator: "Ctrl+A",
+        click: () => this.cm.execCommand('selectAll'),
+      }));
     },
     updated: function () {
       this.$nextTick(function () {
@@ -276,7 +269,7 @@
         // entire view has been re-rendered
         if(this.addedLink){
           this.addedLink = false;
-          hackLinks();
+          ElectronUtil.hackLinks();
         };
       })
     },
@@ -292,29 +285,18 @@
           width: '100%'
         }
       },
+      disabled(){
+        return this.selectedId == null || this.selectedNote.id == null || this.noteManager.notes.length == 0;
+      },
       previewClass() {
         return this.isPreview ? 'fa fa-eye-slash' : 'fa fa-eye'
       },
       selectedNote () {
         // We return the matching note with selectedId
-        let selNote = this.notes.find(note => note.id === this.selectedId)
-        if(!selNote){
-          const time = Date.now()
-          // Default new note
-          const note = {
-            id: String(time),
-            title: 'New note ' + (this.notes.length + 1),
-            content: "# Markdown Editor by MagicworldZ\n>  Another notes application",
-            created: time,
-            favorite: false,
-          }
-          return note;
-        }else{
-          return selNote;
-        }
+        return this.noteManager.findNoteById(this.selectedId, Note.DefaultNote);
       },
       sortedNotes () {
-        return this.notes.slice().sort((a, b) => a.created - b.created)
+        return this.noteManager.notes.slice().sort((a, b) => a.created - b.created)
       },
       linesCount () {
         if (this.selectedNote) {
@@ -353,46 +335,98 @@
       this.__resize();
       // 添加滚动监听事件
       window.addEventListener('resize', this.vmdResize, false);
-      this.vmdEditor.addEventListener('scroll', this.vmdSyncScrolling, false);
-      this.vmdPreview.addEventListener('scroll', this.vmdSyncScrolling, false);
+      // this.cm.addEventListener('scroll', this.vmdSyncScrolling, false);
+      // this.vmdPreview.addEventListener('scroll', this.vmdSyncScrolling, false);
       // 自动获取焦点
-      this.vmdEditor.focus();
-      hackLinks();
+      this.cm.focus();
+      ElectronUtil.hackLinks();
     },
     beforeDestroy() {
       // 移除滚动监听事件
-      this.saveNotes()
+      dataProvider.saveNotes(this.noteManager.rawNotes)
       window.removeEventListener('resize', this.vmdResize, false);
-      this.vmdEditor.removeEventListener('scroll', this.vmdSyncScrolling, false);
-      this.vmdPreview.removeEventListener('scroll', this.vmdSyncScrolling, false);
+      // this.vmdEditor.removeEventListener('scroll', this.vmdSyncScrolling, false);
+      // this.vmdPreview.removeEventListener('scroll', this.vmdSyncScrolling, false);
 
       // 移除DOM组件
       this.__removeDom();
     },
     methods: {
+      onCMContextmenu(e){
+        const findMenu = (menu, id) => menu.items.find(item => item.id && item.id == id);
+        const hasSel = (e.doc.getSelection().length > 0);
+        findMenu(this.cmContextMenu, 'redo').enabled = e.doc.historySize().redo > 0;
+        findMenu(this.cmContextMenu, 'undo').enabled = e.doc.historySize().undo > 0;
+        findMenu(this.cmContextMenu, 'copy').enabled = hasSel;
+        findMenu(this.cmContextMenu, 'paste').enabled = this.me.canPaste();
+        findMenu(this.cmContextMenu, 'cut').enabled = hasSel;
+        findMenu(this.cmContextMenu, 'delete').enabled = hasSel;
+        this.cmContextMenu.popup(remote.getCurrentWindow());
+      },
+      checkGHToken(){
+        return new Promise(function(resolve, reject){
+          let ghToken = dataProvider.loadGitHubToken();
+          if(!ghToken.user || !ghToken.token){
+            let inputDef = {
+              title:'Enter the GitHub user and access token', 
+              inputs:[{
+                msg: "GitHub user",
+                val:'',
+                required: true,
+                name: "user"
+              },
+              {
+                msg: "GitHub token",
+                val:'',
+                required: true,
+                name: "token"
+              }
+              ]
+            }
+            let ret = ElectronUtil.inputPrompt(inputDef);
+            if(ret && ret.token.trim() && ret.user.trim()){
+              ghToken = {"user": ret.user, "token": ret.token};
+              dataProvider.saveGitHubToken(ghToken);
+              resolve(ghToken);
+            } else{
+              reject("user canceled");
+            }
+          }else{
+            resolve(ghToken);
+          }
+        });
+      },
+      renameGHNote(oldN, newTitle){
+        let that = this;
+        return new Promise(function(resolve, reject){
+          let newN = new Note(JSON.parse(JSON.stringify(oldN.data)));
+          newN.title = newTitle;
+          that.checkGHToken().then(function(ghToken){
+
+            let oldFileName = oldN.ghfilename;
+            let newFileName = newN.ghfilename;
+
+            if(oldFileName && newFileName){
+              gh.renameFile(ghToken, '_posts', oldFileName, '_posts', newFileName, newN.ghcontent).then(function(r){
+                resolve(r);
+              }).catch(function(err){
+                reject(err);
+              });
+            } else{
+              ElectronUtil.errorAlert('Note Format Error', `Can't parse file name for note: ${note.title}`);
+            }
+            
+          }).catch(function(err){});
+        });
+      },
       addNote(){
-
-        this.addNoteWithTitle('New note ' + (this.notes.length + 1))
-
+        this.selectNote(this.noteManager.addNote());
       },
       updateMessage(message){
         this.messageTxt = message? message : "";
       },
       addNoteWithTitle(title){
-        // Default new note
-        const date = new Date();
-        const note = {
-          id: String(date.getTime()),
-          title: title,
-          content: this.vmdInput,
-          created: date.getTime(),
-        }
-        note.content = note.content.replace("<title>", note.title)
-        note.content = note.content.replace("<date>", dateFormat(date, "yyyy-mm-dd HH:MM:ss o"))
-        // Add
-        this.notes.push(note)
-        // Select
-        this.selectNote(note)
+        this.selectNote(this.noteManager.addNote(title));
       },
       vmdActive() {
         this.$refs.vmd.classList.add('active')
@@ -403,113 +437,31 @@
       sanitizeHtml() {
         this.isSanitize = !this.isSanitize;
       },
-      parseTitleDate(content){
-        let start = content.indexOf('---');
-        let end = content.indexOf(start + 3, '---');
-        let str = content.slice(start, end);
-        let titlePattern = /title: "(.*)"/
-        let datePattern = /date: (\d{4}-\d{2}-\d{2})/
-
-        let title = null;
-        let matcher = str.match(titlePattern);
-        if(matcher != null){
-          title = matcher[1];
-        }
-        let date = null;
-        matcher = str.match(datePattern);
-        if(matcher != null){
-          date = matcher[1];
-        }
-
-        if(title && date){
-          return date + '-' + title.replace(/(\s+)/g,'-') + '.markdown';
-        }
-
-        return null;
-      },
-      addUpdateDate(content){
-        let updateDate = "update: " + dateFormat(new Date(), "yyyy-mm-dd HH:MM:ss o");
-        let start = content.indexOf('---');
-        return content.slice(0, start + 3) + '\n' + updateDate + "\n" + content.slice(start + 4);
-
-      },
-      processResult(err, status, body, header, name){
-        if(err) {
-          this.updateMessage();
-          errorAlert("GitHub Error " + err.statusCode, err.message);
-        } else {
-          this.updateMessage("File " + name + " saved. New sha is " + status.commit.sha);
-          let that = this;
-          __debounce(function(e){
-            that.updateMessage();
-          }, 10000);
-        }
-      },
       saveGitHub() {
-        let ghToken = JSON.parse(localStorage.getItem("gh_token")) || {};
-        if(!ghToken.user || !ghToken.token){
-          let inputDef = {
-            title:'Enter the GitHub user and access token', 
-            inputs:[{
-              msg: "GitHub user",
-              val:'',
-              required: true,
-              name: "user"
-            },
-            {
-              msg: "GitHub token",
-              val:'',
-              required: true,
-              name: "token"
-            }
-            ]
-          }
-          let ret = inputPrompt(inputDef);
-          if(ret && ret.token.trim() && ret.user.trim()){
-            ghToken = {"user": ret.user, "token": ret.token};
-            localStorage.setItem('gh_token', JSON.stringify(ghToken));
-          } else{
-            return;
-          }
-        }
-
-
-
-        const ghrepo = github.client(ghToken.token).repo(ghToken.user + '/' + ghToken.user + '.github.io');
-
-
         let that = this;
-        let content = this.selectedNote.content;
-        let name = this.parseTitleDate(content);
-        content = this.addUpdateDate(content);
 
-        if(name){
-          let filename = '_posts/' + name;
-          this.updateMessage("Checking " + name + " exists...");
-          ghrepo.contents(filename, function (err, status, body, headers) {
-            if(err){
-              // create
-              if(err.statusCode == 404){
-                that.updateMessage('Creating ' + name);
-                ghrepo.createContents(filename, 'create ' + name, content, function (err, status, body, headers){
-                  that.processResult(err, status, body, headers, name);
-                }); //path
+        this.checkGHToken().then(function(ghToken){
+          let selNote = that.selectedNote;
+          let note = new Note(selNote.data);
+          let ghfilename = note.ghfilename;
+          
+          if(ghfilename){
+            ElectronUtil.showProgressDialog();
+            gh.saveFile(ghToken, '_posts', ghfilename, note.ghcontent, function(sta){
+              ElectronUtil.updateProgress(sta);
+            }).then(function(result){
+              ElectronUtil.updateProgress(`File ${ghfilename} saved. New sha is ${result.commit.sha}`);
+              selNote.github = true;
+              ElectronUtil.finishProgress();
+            }).catch(function(err){
+              ElectronUtil.updateProgress(`GitHub Error ${err.statusCode}: ${err.message}`);
+              ElectronUtil.finishProgress();
+            });
 
-              } else {
-                that.updateMessage();
-                errorAlert("GitHub Error " + err.statusCode, err.message)
-              }
-            } else{
-              that.updateMessage('Updating ' + name);
-              ghrepo.updateContents(filename, 'update ' + name, content, status.sha, function (err, status, body, headers){
-                that.processResult(err, status, body, headers, name);
-              }); //path
-            }
-          });
-        } else{
-          this.updateMessage("fail to save '" + this.selectedNote.title + "' to GitHub");
-        }
-        
+          }else{
+            ElectronUtil.errorAlert('Note Format Error', `Can't parse file name for note: ${selNote.title}`);
+          }
+        }).catch(function(err){});
       },
       exportFile(){
         var dialog = remote.dialog;
@@ -524,7 +476,7 @@
               fs.writeFile(result, that.selectedNote.content, function(err) {
                   if(err) {
                     that.updateMessage();
-                    errorAlert('File Save Error', err)
+                    ElectronUtil.errorAlert('File Save Error', err)
                   } else {
                     that.updateMessage("File saved " + result);
                     __debounce(function(e){
@@ -540,257 +492,69 @@
        * 同步滚动
        */
       vmdSyncScrolling(e) {
-        e = e || window.event;
-        if (this.vmdEditor === e.target) {
-          this.vmdPreview.scrollTop = e.target.scrollTop
-        } else {
-          this.vmdEditor.scrollTop = e.target.scrollTop
-        }
+        this.vmdPreview.scrollTop = this.vmdPreview.scrollHeight* e.getScrollInfo().top/e.getScrollInfo().height;
       },
       vmdResize: __debounce(function (e) {
         this.__resize()
-      }, 100),
-      /**
-       * 监听用户输入
-       */
-      vmdInputting: __debounce(function (value) {
-        this.vmdEditor.value = value;
-        this.__updateInput()
       }, 100),
       preview() {
         this.isPreview = !this.isPreview
       },
       selectNote (note) {
-        // This will update the 'selectedNote' computed property
+        if(this.selectedNote){
+          this.selectedNote.history = this.cm.getHistory();
+        }
         this.selectedId = note.id
-        this.vmdEditor.focus()
+        this.cm.clearHistory();
+
+        this.cm.setValue(note.content);
+
+        if(note.history){
+            this.cm.setHistory(note.history);
+        }
+        this.cm.focus()
+      },
+      removeNote(note){
+        if(note){
+          if(note.id === this.selectedId){
+            if(this.noteManager.notes.length > 0){
+              this.selectNote(this.noteManager.notes[0]);
+            } else{
+              this.selectedId = null;
+            }
+          }
+        }
       },
       openNoteContextMenu(note){
         this.contextMenuOpNote = note;
         this.noteContextMenu.popup(remote.getCurrentWindow());
       },
-      saveNotes () {
-        // Don't forget to stringify to JSON before storing
-        localStorage.setItem('notes', JSON.stringify(this.notes))
-        //console.log('Notes saved!', new Date())
-      },
-      /**
-       * 扩展 Tab 快捷键
-       */
-      selectAll(){
-        this.__setSelection(0, this.vmdEditor.value.length)
-      },
-      copyAll(){
-        console.log(this.__getSelection())
-        clipboard.writeText(this.__getSelection().text);
-      },
-      addTab() {
-        this.__updateInput(this.__localize('tabText'));
-      },
-      addEnter(e) {
-        if(e.shiftKey){
-          this.__updateInput('\n');
-        }else if(!e.isComposing){
-          let selectionStart = this.vmdEditor.selectionStart;
-          let cursor = selectionStart;
-          let content = this.vmdEditor.value;
-          let pattern = /^(> ).*|^(\d+ ).*|^(- ).*/
-          let lineStart = "";
-          let i = selectionStart - 1;
-          for(; i >= 0; --i){
-            if(content[i] === '\n'){
-              break;
-            }
-            lineStart = content[i] + lineStart
-          }
-          let needDel = content[selectionStart] === '\n' || content.length === selectionStart
-          let delPattern = /^(\d+)\. $|^- $|^> $/
-          if(needDel && delPattern.test(lineStart)){
-            if(i === -1){
-              i = 0;
-            }
-            this.vmdEditor.value = content.substr(0,i) + "\n\n" + content.substr(selectionStart)
-            cursor += lineStart.length;
-            console.log(cursor)
-            this.__setSelection(cursor, cursor);
-          }else{
-            let replaceText = '\n'
-            let orderedListPattern = /^(\d+)\. .*/
-            if(lineStart){
-              if(lineStart.startsWith("> ")){
-                replaceText = "\n> "
-              }else if(lineStart.startsWith("- ")){
-                replaceText = "\n- "
-              }else if(orderedListPattern.test(lineStart)){
-                let num = parseInt(lineStart.match(orderedListPattern));
-                replaceText = "\n" + (num + 1) + ". "
-              }
-            }
-            this.__replaceSelection(replaceText);
-          }
-        }
-      },
-      addStrong() {
-        let chunk, cursor, selected = this.__getSelection(), content = this.__getContent();
-
-        chunk = selected.text;
-
-        // 替换选择内容并将光标设置到chunk内容前
-        if (content.substr(selected.start - 2, 2) === '**'
-          && content.substr(selected.end, 2) === '**') {
-          this.__setSelection(selected.start - 2, selected.end + 2);
-          this.__replaceSelection(chunk);
-          cursor = selected.start - 2;
-        } else {
-          this.__replaceSelection('**' + chunk + '**');
-          cursor = selected.start + 2;
-        }
-
-        // 设置选择内容
-        this.__setSelection(cursor, cursor + chunk.length);
-        this.__updateInput()
+      addBold(){
+        this.me.addBold();
       },
       addItalic() {
-        let chunk, cursor, selected = this.__getSelection(), content = this.__getContent();
-
-        chunk = selected.text;
-
-        // 替换选择内容并将光标设置到chunk内容前
-        if (content.substr(selected.start - 1, 1) === '_'
-          && content.substr(selected.end, 1) === '_') {
-          this.__setSelection(selected.start - 1, selected.end + 1);
-          this.__replaceSelection(chunk);
-          cursor = selected.start - 1;
-        } else {
-          this.__replaceSelection('_' + chunk + '_');
-          cursor = selected.start + 1;
-        }
-
-        // 设置选择内容
-        this.__setSelection(cursor, cursor + chunk.length);
-        this.__updateInput()
+        this.me.addItalic();
       },
       addStrikethrough() {
-        let chunk, cursor, selected = this.__getSelection(), content = this.__getContent();
-
-        chunk = selected.text;
-
-        // 替换选择内容并将光标设置到chunk内容前
-        if (content.substr(selected.start - 2, 2) === '~~'
-          && content.substr(selected.end, 2) === '~~') {
-          this.__setSelection(selected.start - 2, selected.end + 2);
-          this.__replaceSelection(chunk);
-          cursor = selected.start - 2;
-        } else {
-          this.__replaceSelection('~~' + chunk + '~~');
-          cursor = selected.start + 2;
-        }
-
-        // 设置选择内容
-        this.__setSelection(cursor, cursor + chunk.length);
-        this.__updateInput()
+        this.me.addStrikethrough();
       },
       addHR(){
-        let chunk, cursor, selected = this.__getSelection();
-        let replaceText = '\n---\n\n';
-
-        this.__replaceSelection(replaceText);
-        cursor = selected.start + replaceText.length;
-        this.__setSelection(cursor, cursor);
-        this.__updateInput();
+        this.me.addHorizonRule();
       },
-      addHeading(txt) {
-        let chunk, cursor, selected = this.__getSelection(), content = this.__getContent(), pointer, prevChar;
-
-        chunk = selected.text;
-
-        // 替换选择内容并将光标设置到chunk内容前
-        if ((pointer = txt.length + 1, content.substr(selected.start - pointer, pointer) === txt + ' ')
-          || (pointer = txt.length, content.substr(selected.start - pointer, pointer) === txt)) {
-          this.__setSelection(selected.start - pointer, selected.end);
-          this.__replaceSelection(chunk);
-          cursor = selected.start - pointer;
-        } else if (selected.start > 0 && (prevChar = content.substr(selected.start - 1, 1), !!prevChar && prevChar !== '\n')) {
-          let replaceText = '\n\n' + txt + ' ';
-          this.__replaceSelection(replaceText + chunk);
-          cursor = selected.start + replaceText.length;
-        } else {
-          // 元素前的空字符串
-          let replaceText = txt + ' ';
-          this.__replaceSelection(replaceText + chunk);
-          cursor = selected.start + replaceText.length ;
-        }
-
-        // 设置选择内容
-        this.__setSelection(cursor, cursor + chunk.length);
-        this.__updateInput()
+      addHeading(heading) {
+        this.me.addHeading(heading);
       },
       addQuote() {
-        let chunk, cursor, selected = this.__getSelection();
-
-
-          if (selected.text.indexOf('\n') < 0) {
-            chunk = selected.text;
-
-            this.__replaceSelection('> ' + chunk);
-
-            // 设置光标
-            cursor = selected.start + 2;
-          } else {
-            let list = [];
-
-            list = selected.text.split('\n');
-            chunk = list[0];
-
-            for (let i in list){
-              list[i] = '> ' + list[i]
-            }
-
-            this.__replaceSelection( list.join('\n'));
-
-            // 设置光标
-            cursor = selected.start + 4;
-          }
-        
-
-        // 设置选择内容
-        //this.__setSelection(cursor, cursor + chunk.length);
-        this.__updateInput()
+        this.me.addQuote();
       },
       addCode() {
-        let chunk, cursor, selected = this.__getSelection(), content = this.__getContent();
-
-        chunk = selected.text;
-
-        // 替换选择内容并将光标设置到chunk内容前
-        if (content.substr(selected.start - 4, 4) === '```\n'
-          && content.substr(selected.end, 4) === '\n```') {
-          this.__setSelection(selected.start - 4, selected.end + 4);
-          this.__replaceSelection(chunk);
-          cursor = selected.start - 4;
-        } else if (content.substr(selected.start - 1, 1) === '`'
-          && content.substr(selected.end, 1) === '`') {
-          this.__setSelection(selected.start - 1, selected.end + 1);
-          this.__replaceSelection(chunk);
-          cursor = selected.start - 1;
-        } else if (content.indexOf('\n') > -1) {
-          this.__replaceSelection('```\n' + chunk + '\n```');
-          cursor = selected.start + 4;
-        } else {
-          this.__replaceSelection('`' + chunk + '`');
-          cursor = selected.start + 1;
-        }
-
-        // 设置选择内容
-        this.__setSelection(cursor, cursor + chunk.length);
-        this.__updateInput()
+        this.me.addCode();
       },
       addLink() {
-        let chunk, cursor, selected = this.__getSelection(), link;
+        let sel = this.me.getSelection();
+        let link;
 
-        chunk = selected.text;
-
-        let ret = inputPrompt({
+        let ret = ElectronUtil.inputPrompt({
             title:'Hyperlink', 
             inputs:[ 
             {
@@ -801,7 +565,7 @@
             },
             {
               msg: "Title (Optional)",
-              val: chunk,
+              val: sel.text,
               required: false,
               name: "title"
             }
@@ -820,22 +584,17 @@
 
           // 替换选择内容并将光标设置到chunk内容前
           let replaceContent = '[' + title + '](' + sanitizedLink + ')';
-          this.__replaceSelection(replaceContent);
-          cursor = selected.start + 1;
-
-          // 设置选择内容
-          this.__setSelection(cursor - 1, cursor + replaceContent.length + 1);
+          this.me.addNormalText(replaceContent);
 
           this.addedLink = true;
+        }else{
+          this.cm.focus();
         }
-        this.__updateInput()
       },
       addImage() {
-        let chunk, cursor, selected = this.__getSelection(), link;
-
-        chunk = selected.text;
-
-        let ret = inputPrompt({
+        let sel = this.me.getSelection();
+        let link;
+        let ret = ElectronUtil.inputPrompt({
             title:'Image', 
             inputs:[ 
             {
@@ -846,7 +605,7 @@
             },
             {
               msg: "Alternate (Optional)",
-              val: chunk,
+              val: sel.text,
               required: false,
               name: "alternate"
             }
@@ -863,93 +622,19 @@
 
           // 替换选择内容并将光标设置到chunk内容前
           let replaceText = '![' + alternate + '](' + sanitizedLink + ' "' + alternate + '")';
-          this.__replaceSelection(replaceText);
-          cursor = selected.start;
-
-          // 设置选择内容
-          this.__setSelection(cursor, cursor + replaceText.length);
+          this.me.addNormalText(replaceText);
+        }else{
+          this.cm.focus();
         }
-        this.__updateInput()
       },
       addTable() {
-        let chunk, cursor, selected = this.__getSelection();
-
-        if (selected.length === 0) {
-          // 提供额外的内容
-          chunk = this.__localize('tableText');
-        } else {
-          chunk = selected.text;
-        }
-
-        // 替换选择内容并将光标设置到chunk内容前
-        this.__replaceSelection(chunk);
-        cursor = selected.start;
-
-        // 设置选择内容
-        this.__setSelection(cursor, cursor + chunk.length);
-        this.__updateInput()
+        this.me.addTable();
       },
       addUl() {
-        let chunk, cursor, selected = this.__getSelection();
-
-        if (selected.text.indexOf('\n') < 0) {
-          chunk = selected.text;
-
-          this.__replaceSelection('- ' + chunk);
-
-          // 设置光标
-          cursor = selected.start + 2;
-        } else {
-          let list = [];
-
-          list = selected.text.split('\n');
-          chunk = list[0];
-
-          for(let i in list){
-            list[i] = '- ' + list[i]
-          }
-
-          this.__replaceSelection(list.join('\n'));
-
-          // 设置光标
-          cursor = selected.start + 4;
-        }
-        
-
-        // 设置选择内容
-        this.__setSelection(cursor, cursor + chunk.length);
-        this.__updateInput()
+        this.me.addUl();
       },
       addOl() {
-        let chunk, cursor, selected = this.__getSelection();
-
-        if (selected.text.indexOf('\n') < 0) {
-          chunk = selected.text;
-
-          this.__replaceSelection('1. ' + chunk);
-
-          // 设置光标
-          cursor = selected.start + 3;
-        } else {
-          let list = [];
-
-          list = selected.text.split('\n');
-          chunk = list[0];
-
-          for(let i = 0; i < list.length; ++i){
-            list[i] = (i+1) + '. ' + list[i]
-          }
-
-
-          this.__replaceSelection(list.join('\n'));
-
-          // 设置光标
-          cursor = selected.start + 5;
-        }
-
-        // 设置选择内容
-        this.__setSelection(cursor, cursor + chunk.length);
-        this.__updateInput()
+        this.me.addOl();
       },
       fullscreen() {
 
@@ -959,15 +644,36 @@
         this.vmdBody = this.$refs.vmdBody;
         this.vmdHeader = this.$refs.vmdHeader;
         this.vmdFooter = this.$refs.vmdFooter;
-        this.vmdEditor = this.$refs.vmdEditor;
         this.vmdPreview = this.$refs.vmdPreview;
+        this.cm = this.$refs.vmdEditor.cm;
+        this.me = new MEditor(this.cm);
+        let that = this;
+        let extraKeys = {
+            Tab: (cm) => that.me.addTab(),
+            Enter: (cm) => that.me.addEnter(),
+            "Ctrl-I": (cm) => that.me.addItalic(),
+            "Ctrl-B": (cm) => that.me.addBold(),
+            "Ctrl-1": (cm) => that.me.addHeading(MEditor.Markdown.h1),
+            "Ctrl-2": (cm) => that.me.addHeading(MEditor.Markdown.h2),
+            "Ctrl-3": (cm) => that.me.addHeading(MEditor.Markdown.h3),
+            "Ctrl-D": (cm) => that.me.addStrikethrough(),
+            "Ctrl-R": (cm) => that.me.addHorizonRule(),
+            "Ctrl-U": (cm) => that.me.addUl(),
+            "Ctrl-O": (cm) => that.me.addOl(),
+            "Ctrl-T": (cm) => that.me.addTable(),
+            "Ctrl-L": (cm) => that.me.addLink(),
+            "Ctrl-G": (cm) => that.me.addImage(),
+            "Ctrl-K": (cm) => that.me.addCode(),
+            "Ctrl-Q": (cm) => that.me.addQuote(),
+        };
+        this.cm.setOption("extraKeys", extraKeys);
+        this.cm.setOption("readOnly", this.disabled);
       },
       __removeDom() {
         this.vmd = null;
         this.vmdBody = null;
         this.vmdHeader = null;
         this.vmdFooter = null;
-        this.vmdEditor = null;
         this.vmdPreview = null
       },
       __resize() {
@@ -976,108 +682,26 @@
         this.vmdBody.style.height = (this.vmd.offsetHeight - vmdHeaderOffset - vmdFooterOffset) + 'px';
 
       },
-      __updateInput(txt) {
-        if (txt) {
-          this.vmdEditor.value += txt;
-        }
-
-        if (!this.$props.value) {
-          this.vmdInput = this.vmdEditor.value;
-        } else {
-          this.$emit('input', this.vmdEditor.value);
-        }
-        //this.selectedNote.content = this.vmdEditor.value;
-
-        this.vmdEditor.focus()
-      },
-      __localize(tag) {
-        return locale[this.lang][tag]
-      },
-      /**
-       * 获取编辑器的值
-       */
-      __getContent() {
-        return this.vmdEditor.value
-      },
-      /**
-       * 获取选择的内容
-       */
-      __getSelection() {
-        let e = this.vmdEditor;
-        return (
-          ('selectionStart' in e && function () {
-            let l = e.selectionEnd - e.selectionStart;
-            return {start: e.selectionStart, end: e.selectionEnd, length: l, text: e.value.substr(e.selectionStart, l)};
-          }) ||
-
-          /* 如果浏览器不支持 */
-          function () {
-            return null;
-          }
-        )();
-      },
-      /**
-       * 设置选择的内容
-       * @param start
-       * @param end
-       */
-      __setSelection(start, end) {
-        let e = this.vmdEditor;
-        return (
-          ('selectionStart' in e && function () {
-            e.selectionStart = start;
-            e.selectionEnd = end;
-            return null;
-          }) ||
-
-          /* 如果浏览器不支持 */
-          function () {
-            return null;
-          }
-        )();
-      },
-      /**
-       * 替换选择的内容
-       * @param text
-       */
-      __replaceSelection(text) {
-        let e = this.vmdEditor;
-        let that = this;
-        return (
-          ('selectionStart' in e && function () {
-            e.value = e.value.substr(0, e.selectionStart) + text + e.value.substr(e.selectionEnd, e.value.length);
-            // Set cursor to the last replacement end
-            that.selectedNote.content = e.value;
-
-            e.selectionStart = e.value.length;
-            return null;
-          }) ||
-
-          /* 如果浏览器不支持 */
-          function () {
-            e.value += text;
-            return null;
-          }
-        )();
-      }
     },  // Change watchers
     watch: {
       // When our notes change, we save them
-      notes: {
+      noteManager: {
         // The method name
-        handler: 'saveNotes',
+        handler: function(){
+          dataProvider.saveNotes(this.noteManager.rawNotes);
+        },
         // We need this to watch each note's properties inside the array
         deep: true,
       },
       // Let's save the selection too
       selectedId (val, oldVal) {
-        localStorage.setItem('selected-id', val)
+        dataProvider.saveSelectedNoteId(val);
       },
     },
   }
 </script>
 
-<style scoped>
+<style>
 
   *:focus {
     outline: none;
@@ -1107,6 +731,8 @@
   button:hover {
     background: #63c89b;
   }
+
+  .CodeMirror { height: inherit !important; }
 
   .toolbar {
     padding: 4px;
@@ -1176,6 +802,7 @@
   .note {
     padding: 10px;
     cursor: pointer;
+    font-size: 12px;
   }
 
   .note:hover {
