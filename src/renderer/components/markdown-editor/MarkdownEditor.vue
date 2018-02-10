@@ -46,7 +46,7 @@
       <div class="vmd-body" ref="vmdBody">
         <template v-if="selectedNote">
           <CodeMirrorEditor v-model="selectedNote.content" :options="cmOption" :readonly="disabled" @scroll="vmdSyncScrolling(cm)" @focus="vmdActive" @blur="vmdInactive" @contextmenu="onCMContextmenu" class="vmd-editor CodeMirror" style="overflow-y: hidden; padding: 0px;" ref="vmdEditor"></CodeMirrorEditor>
-          <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown"></div>
+          <div class="vmd-preview markdown-body" ref="vmdPreview" v-show="isPreview" v-html="compiledMarkdown" @contextmenu="copyHTMLContextMenu()"></div>
         </template>
       </div>
       <div class="vmd-footer" ref="vmdFooter">
@@ -132,6 +132,7 @@
         selectedId: dataProvider.loadSelectedNoteId(),
         noteContextMenu: null,
         cmContextmenu: null,
+        htmlContextMenu: null,
         contextMenuOpNote: null,
         addedLink: false,
         messageTxt: "",
@@ -193,6 +194,8 @@
                 ElectronUtil.updateProgress(`Fail to rename on GitHub:,status: ${err.statusCode}, message: ${err.message}`);
                 ElectronUtil.finishProgress();
               });
+            }else{
+              that.contextMenuOpNote.title = ret.title;
             }
             
           }
@@ -205,6 +208,13 @@
           }
           that.contextMenuOpNote = null;
         }}));
+
+      this.htmlContextMenu = new Menu();
+      this.htmlContextMenu.append(new MenuItem({ label: "Copy HTML", click: function(){
+        let clipboard = electron.clipboard;
+        let html = that.compiledMarkdown;
+        clipboard.writeHTML(html);
+      }}));
 
       this.cmContextMenu = new Menu();
       this.cmContextMenu.append(new MenuItem({
@@ -353,14 +363,15 @@
     },
     methods: {
       onCMContextmenu(e){
+        let readOnly = e.isReadOnly();
         const findMenu = (menu, id) => menu.items.find(item => item.id && item.id == id);
         const hasSel = (e.doc.getSelection().length > 0);
-        findMenu(this.cmContextMenu, 'redo').enabled = e.doc.historySize().redo > 0;
-        findMenu(this.cmContextMenu, 'undo').enabled = e.doc.historySize().undo > 0;
+        findMenu(this.cmContextMenu, 'redo').enabled = !readOnly && e.doc.historySize().redo > 0;
+        findMenu(this.cmContextMenu, 'undo').enabled = !readOnly && e.doc.historySize().undo > 0;
         findMenu(this.cmContextMenu, 'copy').enabled = hasSel;
-        findMenu(this.cmContextMenu, 'paste').enabled = this.me.canPaste();
-        findMenu(this.cmContextMenu, 'cut').enabled = hasSel;
-        findMenu(this.cmContextMenu, 'delete').enabled = hasSel;
+        findMenu(this.cmContextMenu, 'paste').enabled = !readOnly && this.me.canPaste();
+        findMenu(this.cmContextMenu, 'cut').enabled = !readOnly && hasSel;
+        findMenu(this.cmContextMenu, 'delete').enabled = !readOnly && hasSel;
         this.cmContextMenu.popup(remote.getCurrentWindow());
       },
       checkGHToken(){
@@ -528,6 +539,9 @@
       openNoteContextMenu(note){
         this.contextMenuOpNote = note;
         this.noteContextMenu.popup(remote.getCurrentWindow());
+      },
+      copyHTMLContextMenu(){
+        this.htmlContextMenu.popup(remote.getCurrentWindow());
       },
       addBold(){
         this.me.addBold();
